@@ -1,0 +1,1434 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://character-asset.local/schemas/base-view-generation.schema.json",
+  "title": "BaseViewGeneration",
+  "type": "object",
+  "properties": {
+    "generation_id": {
+      "type": "string",
+      "pattern": "^gen_[A-Za-z0-9_-]+$"
+    },
+    "character_id": {
+      "type": "string",
+      "pattern": "^char_[A-Za-z0-9_-]+$"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "prepared"
+      ]
+    },
+    "generator": {
+      "type": "string",
+      "enum": [
+        "chatgpt-web"
+      ]
+    },
+    "prompt_template_version": {
+      "type": "string"
+    },
+    "character_lock": {
+      "type": "object",
+      "properties": {
+        "spec_id": {
+          "type": "string"
+        },
+        "asset_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "name": {
+          "type": "string"
+        },
+        "style_profile": {
+          "type": "string"
+        },
+        "proportion_profile": {
+          "type": "string"
+        },
+        "visual": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "output_constraints": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "spec_id",
+        "asset_version",
+        "name",
+        "style_profile",
+        "proportion_profile",
+        "visual",
+        "output_constraints"
+      ]
+    },
+    "views": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "direction": {
+            "type": "string",
+            "enum": [
+              "S",
+              "SW",
+              "W",
+              "NW",
+              "N"
+            ]
+          },
+          "prompt": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "direction",
+          "prompt"
+        ]
+      }
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "generation_id",
+    "character_id",
+    "status",
+    "generator",
+    "prompt_template_version",
+    "character_lock",
+    "views",
+    "created_at"
+  ],
+  "$defs": {
+    "Error": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message"
+      ]
+    },
+    "ErrorEnvelope": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "$ref": "#/$defs/Error"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "error"
+      ]
+    },
+    "Project": {
+      "type": "object",
+      "properties": {
+        "project_id": {
+          "type": "string",
+          "pattern": "^proj_[A-Za-z0-9_-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "schema_version": {
+          "type": "string",
+          "default": "1.0.0"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "project_id",
+        "name",
+        "schema_version",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    "CharacterSpec": {
+      "type": "object",
+      "properties": {
+        "spec_id": {
+          "type": "string",
+          "pattern": "^spec_[A-Za-z0-9_-]+$"
+        },
+        "character_id": {
+          "type": "string",
+          "pattern": "^char_[A-Za-z0-9_-]+$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^proj_[A-Za-z0-9_-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "style_profile": {
+          "type": "string",
+          "minLength": 1
+        },
+        "proportion_profile": {
+          "type": "string",
+          "minLength": 1
+        },
+        "visual": {
+          "type": "object",
+          "properties": {
+            "gender_presentation": {
+              "type": "string"
+            },
+            "age_style": {
+              "type": "string"
+            },
+            "silhouette": {
+              "type": "string"
+            },
+            "palette": {
+              "type": "object",
+              "properties": {
+                "primary": {
+                  "type": "string",
+                  "pattern": "^#[0-9A-Fa-f]{6}$"
+                },
+                "secondary": {
+                  "type": "string",
+                  "pattern": "^#[0-9A-Fa-f]{6}$"
+                },
+                "accent": {
+                  "type": "string",
+                  "pattern": "^#[0-9A-Fa-f]{6}$"
+                }
+              },
+              "additionalProperties": true
+            },
+            "prompt_notes": {
+              "type": "string",
+              "maxLength": 4000
+            }
+          },
+          "additionalProperties": false
+        },
+        "views_required": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "S",
+              "SW",
+              "W",
+              "NW",
+              "N",
+              "NE",
+              "E",
+              "SE"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "equipment_slots": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "head",
+              "weapon",
+              "shield",
+              "back",
+              "fx",
+              "custom"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "rig_preset": {
+          "type": "string",
+          "minLength": 1
+        },
+        "motion_preset": {
+          "type": "string",
+          "minLength": 1
+        },
+        "output_constraints": {
+          "type": "object",
+          "properties": {
+            "canvas_width": {
+              "type": "integer",
+              "minimum": 64,
+              "maximum": 4096,
+              "default": 512
+            },
+            "canvas_height": {
+              "type": "integer",
+              "minimum": 64,
+              "maximum": 4096,
+              "default": 512
+            },
+            "transparent_background": {
+              "type": "boolean",
+              "default": true
+            },
+            "padding_px": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 512,
+              "default": 16
+            }
+          },
+          "additionalProperties": false
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "draft",
+            "processing",
+            "ready",
+            "approved",
+            "failed",
+            "archived"
+          ],
+          "default": "draft"
+        },
+        "schema_version": {
+          "type": "string",
+          "default": "1.0.0"
+        },
+        "asset_version": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "spec_id",
+        "character_id",
+        "project_id",
+        "name",
+        "style_profile",
+        "proportion_profile",
+        "views_required",
+        "rig_preset",
+        "motion_preset",
+        "schema_version",
+        "asset_version"
+      ]
+    },
+    "BaseView": {
+      "type": "object",
+      "properties": {
+        "direction": {
+          "type": "string",
+          "enum": [
+            "S",
+            "SW",
+            "W",
+            "NW",
+            "N",
+            "NE",
+            "E",
+            "SE"
+          ]
+        },
+        "image_asset_id": {
+          "type": "string"
+        },
+        "source_direction": {
+          "type": "string",
+          "enum": [
+            "S",
+            "SW",
+            "W",
+            "NW",
+            "N",
+            "NE",
+            "E",
+            "SE"
+          ]
+        },
+        "mirrored": {
+          "type": "boolean",
+          "default": false
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "draft",
+            "processing",
+            "ready",
+            "approved",
+            "failed",
+            "archived"
+          ]
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "transparent_background": {
+          "type": "boolean"
+        },
+        "provenance": {
+          "type": "object",
+          "properties": {
+            "provider": {
+              "type": "string"
+            },
+            "model": {
+              "type": "string"
+            },
+            "seed": {
+              "type": "integer"
+            },
+            "prompt_template_version": {
+              "type": "string"
+            },
+            "generation_id": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "direction",
+        "image_asset_id",
+        "status"
+      ]
+    },
+    "BaseViewValidation": {
+      "type": "object",
+      "properties": {
+        "valid": {
+          "type": "boolean"
+        },
+        "score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "views_checked": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "required_views": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "S",
+              "SW",
+              "W",
+              "NW",
+              "N"
+            ]
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "valid",
+        "score",
+        "views_checked",
+        "required_views",
+        "warnings",
+        "errors"
+      ]
+    },
+    "PartAsset": {
+      "type": "object",
+      "properties": {
+        "part_id": {
+          "type": "string"
+        },
+        "character_id": {
+          "type": "string"
+        },
+        "direction": {
+          "type": "string",
+          "enum": [
+            "S",
+            "SW",
+            "W",
+            "NW",
+            "N",
+            "NE",
+            "E",
+            "SE"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "body_part",
+            "hair",
+            "equipment",
+            "shadow",
+            "fx",
+            "custom"
+          ]
+        },
+        "image_asset_id": {
+          "type": "string"
+        },
+        "mask_asset_id": {
+          "type": "string"
+        },
+        "pivot": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "x",
+            "y"
+          ]
+        },
+        "default_draw_layer": {
+          "type": "integer"
+        },
+        "approved": {
+          "type": "boolean",
+          "default": false
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "draft",
+            "processing",
+            "ready",
+            "approved",
+            "failed",
+            "archived"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "part_id",
+        "character_id",
+        "direction",
+        "name",
+        "category",
+        "image_asset_id",
+        "pivot",
+        "status"
+      ]
+    },
+    "Bone": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "parent": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "position": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "x",
+            "y"
+          ]
+        },
+        "length": {
+          "type": "number",
+          "minimum": 0
+        },
+        "rotation": {
+          "type": "number",
+          "default": 0
+        },
+        "rotation_limits": {
+          "type": "object",
+          "properties": {
+            "min": {
+              "type": "number"
+            },
+            "max": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "parent",
+        "position"
+      ]
+    },
+    "Socket": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "bone_name": {
+          "type": "string"
+        },
+        "slot_type": {
+          "type": "string",
+          "enum": [
+            "head",
+            "weapon",
+            "shield",
+            "back",
+            "fx",
+            "custom"
+          ]
+        },
+        "offset": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "number",
+              "default": 0
+            },
+            "y": {
+              "type": "number",
+              "default": 0
+            },
+            "rotation": {
+              "type": "number",
+              "default": 0
+            },
+            "scale_x": {
+              "type": "number",
+              "default": 1
+            },
+            "scale_y": {
+              "type": "number",
+              "default": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "bone_name",
+        "slot_type",
+        "offset"
+      ]
+    },
+    "Binding": {
+      "type": "object",
+      "properties": {
+        "part_id": {
+          "type": "string"
+        },
+        "bone_name": {
+          "type": "string"
+        },
+        "pivot": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "x",
+            "y"
+          ]
+        },
+        "offset": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "number",
+              "default": 0
+            },
+            "y": {
+              "type": "number",
+              "default": 0
+            },
+            "rotation": {
+              "type": "number",
+              "default": 0
+            },
+            "scale_x": {
+              "type": "number",
+              "default": 1
+            },
+            "scale_y": {
+              "type": "number",
+              "default": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "weight_mode": {
+          "type": "string",
+          "enum": [
+            "rigid",
+            "weighted"
+          ],
+          "default": "rigid"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "part_id",
+        "bone_name",
+        "pivot",
+        "offset"
+      ]
+    },
+    "Rig": {
+      "type": "object",
+      "properties": {
+        "rig_id": {
+          "type": "string",
+          "pattern": "^rig_[A-Za-z0-9_-]+$"
+        },
+        "character_id": {
+          "type": "string"
+        },
+        "preset": {
+          "type": "string"
+        },
+        "bones": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Bone"
+          }
+        },
+        "sockets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Socket"
+          }
+        },
+        "bindings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Binding"
+          }
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "draft",
+            "processing",
+            "ready",
+            "approved",
+            "failed",
+            "archived"
+          ]
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "rig_id",
+        "character_id",
+        "preset",
+        "bones",
+        "sockets",
+        "bindings",
+        "status",
+        "version"
+      ]
+    },
+    "DirectionProfile": {
+      "type": "object",
+      "properties": {
+        "character_id": {
+          "type": "string"
+        },
+        "direction": {
+          "type": "string",
+          "enum": [
+            "S",
+            "SW",
+            "W",
+            "NW",
+            "N",
+            "NE",
+            "E",
+            "SE"
+          ]
+        },
+        "mirror_source": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "S",
+                "SW",
+                "W",
+                "NW",
+                "N",
+                "NE",
+                "E",
+                "SE"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "bone_offsets": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "number",
+                "default": 0
+              },
+              "y": {
+                "type": "number",
+                "default": 0
+              },
+              "rotation": {
+                "type": "number",
+                "default": 0
+              },
+              "scale_x": {
+                "type": "number",
+                "default": 1
+              },
+              "scale_y": {
+                "type": "number",
+                "default": 1
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "socket_offsets": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "number",
+                "default": 0
+              },
+              "y": {
+                "type": "number",
+                "default": 0
+              },
+              "rotation": {
+                "type": "number",
+                "default": 0
+              },
+              "scale_x": {
+                "type": "number",
+                "default": 1
+              },
+              "scale_y": {
+                "type": "number",
+                "default": 1
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "draw_order": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "scale_overrides": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "scale_x": {
+                "type": "number"
+              },
+              "scale_y": {
+                "type": "number"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "approved": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "character_id",
+        "direction",
+        "bone_offsets",
+        "socket_offsets",
+        "draw_order"
+      ]
+    },
+    "Keyframe": {
+      "type": "object",
+      "properties": {
+        "time": {
+          "type": "number",
+          "minimum": 0
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "rotation": {
+          "type": "number"
+        },
+        "scale_x": {
+          "type": "number"
+        },
+        "scale_y": {
+          "type": "number"
+        },
+        "easing": {
+          "type": "string",
+          "enum": [
+            "linear",
+            "ease_in",
+            "ease_out",
+            "ease_in_out",
+            "step"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "time"
+      ]
+    },
+    "AnimationTrack": {
+      "type": "object",
+      "properties": {
+        "bone_name": {
+          "type": "string"
+        },
+        "keyframes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Keyframe"
+          },
+          "minItems": 1
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "bone_name",
+        "keyframes"
+      ]
+    },
+    "AnimationEvent": {
+      "type": "object",
+      "properties": {
+        "time": {
+          "type": "number",
+          "minimum": 0
+        },
+        "event_name": {
+          "type": "string"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "time",
+        "event_name"
+      ]
+    },
+    "AnimationClip": {
+      "type": "object",
+      "properties": {
+        "animation_id": {
+          "type": "string",
+          "pattern": "^anim_[A-Za-z0-9_-]+$"
+        },
+        "character_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string",
+          "enum": [
+            "idle",
+            "walk",
+            "run",
+            "attack_1",
+            "hit",
+            "die",
+            "custom"
+          ]
+        },
+        "duration_sec": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "loop": {
+          "type": "boolean"
+        },
+        "tracks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AnimationTrack"
+          }
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AnimationEvent"
+          }
+        },
+        "directions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "S",
+              "SW",
+              "W",
+              "NW",
+              "N",
+              "NE",
+              "E",
+              "SE"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "draft",
+            "processing",
+            "ready",
+            "approved",
+            "failed",
+            "archived"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "animation_id",
+        "character_id",
+        "name",
+        "duration_sec",
+        "loop",
+        "tracks",
+        "events",
+        "directions",
+        "version",
+        "status"
+      ]
+    },
+    "EquipmentItem": {
+      "type": "object",
+      "properties": {
+        "item_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "slot": {
+          "type": "string",
+          "enum": [
+            "head",
+            "weapon",
+            "shield",
+            "back",
+            "fx",
+            "custom"
+          ]
+        },
+        "image_asset_id": {
+          "type": "string"
+        },
+        "style_profile": {
+          "type": "string"
+        },
+        "direction_assets": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "metadata": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "draft",
+            "processing",
+            "ready",
+            "approved",
+            "failed",
+            "archived"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "item_id",
+        "name",
+        "slot",
+        "status"
+      ]
+    },
+    "Attachment": {
+      "type": "object",
+      "properties": {
+        "character_id": {
+          "type": "string"
+        },
+        "slot": {
+          "type": "string",
+          "enum": [
+            "head",
+            "weapon",
+            "shield",
+            "back",
+            "fx",
+            "custom"
+          ]
+        },
+        "item_id": {
+          "type": "string"
+        },
+        "socket_name": {
+          "type": "string"
+        },
+        "direction_offsets": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "number",
+                "default": 0
+              },
+              "y": {
+                "type": "number",
+                "default": 0
+              },
+              "rotation": {
+                "type": "number",
+                "default": 0
+              },
+              "scale_x": {
+                "type": "number",
+                "default": 1
+              },
+              "scale_y": {
+                "type": "number",
+                "default": 1
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "character_id",
+        "slot",
+        "item_id",
+        "socket_name"
+      ]
+    },
+    "QCCheck": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pass",
+            "warning",
+            "fail"
+          ]
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "details": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "status",
+        "warnings",
+        "errors"
+      ]
+    },
+    "QCResult": {
+      "type": "object",
+      "properties": {
+        "valid": {
+          "type": "boolean"
+        },
+        "score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/QCCheck"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "valid",
+        "score",
+        "checks"
+      ]
+    },
+    "Job": {
+      "type": "object",
+      "properties": {
+        "job_id": {
+          "type": "string",
+          "pattern": "^job_[A-Za-z0-9_-]+$"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "queued",
+            "running",
+            "completed",
+            "failed",
+            "canceled"
+          ]
+        },
+        "progress": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "operation": {
+          "type": "string"
+        },
+        "resource_type": {
+          "type": "string"
+        },
+        "resource_id": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "logs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "error": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Error"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "job_id",
+        "status",
+        "operation",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    "ExportPackage": {
+      "type": "object",
+      "properties": {
+        "package_id": {
+          "type": "string",
+          "pattern": "^pkg_[A-Za-z0-9_-]+$"
+        },
+        "character_id": {
+          "type": "string"
+        },
+        "format": {
+          "type": "string",
+          "enum": [
+            "character-asset-v1",
+            "runtime-bundle-v1",
+            "spritesheet-bundle-v1"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "building",
+            "ready",
+            "failed"
+          ]
+        },
+        "download_url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "included_files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "checksum_sha256": {
+          "type": "string",
+          "pattern": "^[A-Fa-f0-9]{64}$"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "package_id",
+        "character_id",
+        "format",
+        "status"
+      ]
+    }
+  }
+}

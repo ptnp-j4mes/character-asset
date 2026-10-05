@@ -1,0 +1,53 @@
+{
+  "project": "Character-Asset",
+  "version": "0.3.0",
+  "standards": {
+    "openapi": "3.2.1",
+    "openapiDialect": "https://spec.openapis.org/oas/3.2/dialect/2026-02-26",
+    "mcpProtocolRevision": "2026-07-28",
+    "jsonSchema": "2020-12"
+  },
+  "counts": {
+    "mcpTools": 64,
+    "openapiPaths": 55,
+    "sharedSchemas": 13
+  },
+  "files": {
+    "openapi": "openapi/character-asset.openapi.json",
+    "mcpCatalog": "mcp/character-asset.mcp-tools.json",
+    "mcpToolsListResult": "mcp/tools-list.result.json",
+    "schemas": [
+      "animation-clip.schema.json",
+      "base-view-generation.schema.json",
+      "base-view-validation.schema.json",
+      "base-view.schema.json",
+      "character-spec.schema.json",
+      "direction-profile.schema.json",
+      "equipment-item.schema.json",
+      "export-package.schema.json",
+      "job.schema.json",
+      "part-asset.schema.json",
+      "project.schema.json",
+      "qc-result.schema.json",
+      "rig.schema.json"
+    ]
+  },
+  "implementation": {
+    "runtime": "node>=22",
+    "serverEntry": "src/index.mjs",
+    "defaultAddress": "http://127.0.0.1:8787",
+    "mcpEndpoint": "/mcp",
+    "transport": "stateless-http-json-rpc",
+    "storage": "atomic-json-files",
+    "implementedTools": [
+      "project.create",
+      "character.create_spec",
+      "character.get_spec",
+      "character.prepare_base_views",
+      "character.ingest_base_view",
+      "character.get_base_views",
+      "character.validate_base_views",
+      "rig.create"
+    ]
+  }
+}

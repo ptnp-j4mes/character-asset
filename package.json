@@ -1,0 +1,13 @@
+{
+  "name": "character-asset",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test",
+    "start": "node src/index.mjs"
+  }
+}
