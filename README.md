@@ -37,6 +37,23 @@ Defaults:
 
 The default workflow remains ChatGPT Web-first and does not require an image API key. An optional HTTP image-generation bridge can be enabled with `CHARACTER_ASSET_IMAGE_BRIDGE_URL`; `character.generate_base_views` sends each locked prompt to that bridge and persists the returned PNG. The bridge must return a JSON object containing `image_data_url` as a PNG data URL, with optional `provider` and `model` fields.
 
+### OpenAI image bridge example
+
+A runnable Node 22 example lives at `examples/openai-image-bridge/server.mjs`. It calls the OpenAI Image API with `gpt-image-2`, requests a magenta chroma-key background, removes the edge-connected magenta pixels locally, and returns a transparent PNG data URL to Character-Asset. Small runtime canvases such as 128×128 are generated at 1024×1024 so the authoring master remains useful for segmentation.
+
+```sh
+export OPENAI_API_KEY=...
+export BRIDGE_TOKEN=local-bridge-secret
+npm run bridge:openai
+
+# In a second shell, start Character-Asset with the bridge enabled.
+export CHARACTER_ASSET_IMAGE_BRIDGE_URL=http://127.0.0.1:8790/generate
+export CHARACTER_ASSET_IMAGE_BRIDGE_TOKEN=local-bridge-secret
+npm start
+```
+
+Optional bridge settings: `OPENAI_IMAGE_MODEL`, `OPENAI_IMAGE_SIZE`, `OPENAI_IMAGE_QUALITY`, `OPENAI_IMAGE_API_URL`, `BRIDGE_HOST`, and `BRIDGE_PORT`.
+
 PNG files are stored at `data/characters/<character_id>/base_views/<direction>.png`. Prompt-generation records are stored under `base_view_generations/`.
 
 ## REST routes implemented in V1
