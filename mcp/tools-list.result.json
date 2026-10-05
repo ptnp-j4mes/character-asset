@@ -626,9 +626,13 @@
                 "type": "string",
                 "enum": [
                   "draft",
+                  "segmented",
+                  "needs_repair",
+                  "repaired",
                   "processing",
                   "ready",
                   "approved",
+                  "rig_ready",
                   "failed",
                   "archived"
                 ],
@@ -843,9 +847,13 @@
                 "type": "string",
                 "enum": [
                   "draft",
+                  "segmented",
+                  "needs_repair",
+                  "repaired",
                   "processing",
                   "ready",
                   "approved",
+                  "rig_ready",
                   "failed",
                   "archived"
                 ],
@@ -1070,9 +1078,13 @@
                 "type": "string",
                 "enum": [
                   "draft",
+                  "segmented",
+                  "needs_repair",
+                  "repaired",
                   "processing",
                   "ready",
                   "approved",
+                  "rig_ready",
                   "failed",
                   "archived"
                 ],
@@ -1994,9 +2006,13 @@
                 "type": "string",
                 "enum": [
                   "draft",
+                  "segmented",
+                  "needs_repair",
+                  "repaired",
                   "processing",
                   "ready",
                   "approved",
+                  "rig_ready",
                   "failed",
                   "archived"
                 ]
@@ -2127,9 +2143,13 @@
                 "type": "string",
                 "enum": [
                   "draft",
+                  "segmented",
+                  "needs_repair",
+                  "repaired",
                   "processing",
                   "ready",
                   "approved",
+                  "rig_ready",
                   "failed",
                   "archived"
                 ]
@@ -2673,6 +2693,14 @@
                 "type": "integer",
                 "minimum": 0
               },
+              "segmented_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "needs_repair_count": {
+                "type": "integer",
+                "minimum": 0
+              },
               "approved_count": {
                 "type": "integer",
                 "minimum": 0
@@ -2762,9 +2790,13 @@
                 "type": "string",
                 "enum": [
                   "draft",
+                  "segmented",
+                  "needs_repair",
+                  "repaired",
                   "processing",
                   "ready",
                   "approved",
+                  "rig_ready",
                   "failed",
                   "archived"
                 ]
@@ -2878,6 +2910,105 @@
                   "reason"
                 ]
               },
+              "repair": {
+                "type": "object",
+                "properties": {
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "not_required",
+                      "needed",
+                      "prepared",
+                      "repaired"
+                    ]
+                  },
+                  "reason": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "hidden_area_reconstructed": {
+                    "type": "boolean"
+                  },
+                  "repaired_image_asset_id": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "joint_padding": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 256
+                    }
+                  },
+                  "z_order": {
+                    "type": "integer",
+                    "minimum": -1000,
+                    "maximum": 1000
+                  },
+                  "prompt": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "prepared_at": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "repaired_at": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "required",
+                  "state",
+                  "reason",
+                  "hidden_area_reconstructed",
+                  "repaired_image_asset_id",
+                  "joint_padding",
+                  "z_order",
+                  "prompt",
+                  "prepared_at",
+                  "repaired_at"
+                ]
+              },
               "authoring": {
                 "type": "object",
                 "properties": {
@@ -2944,6 +3075,7 @@
               "bone_hint",
               "default_draw_layer",
               "occlusion",
+              "repair",
               "authoring",
               "created_at",
               "updated_at"
@@ -3058,9 +3190,13 @@
                 "type": "string",
                 "enum": [
                   "draft",
+                  "segmented",
+                  "needs_repair",
+                  "repaired",
                   "processing",
                   "ready",
                   "approved",
+                  "rig_ready",
                   "failed",
                   "archived"
                 ]
@@ -3174,6 +3310,105 @@
                   "reason"
                 ]
               },
+              "repair": {
+                "type": "object",
+                "properties": {
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "not_required",
+                      "needed",
+                      "prepared",
+                      "repaired"
+                    ]
+                  },
+                  "reason": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "hidden_area_reconstructed": {
+                    "type": "boolean"
+                  },
+                  "repaired_image_asset_id": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "joint_padding": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 256
+                    }
+                  },
+                  "z_order": {
+                    "type": "integer",
+                    "minimum": -1000,
+                    "maximum": 1000
+                  },
+                  "prompt": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "prepared_at": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "repaired_at": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "required",
+                  "state",
+                  "reason",
+                  "hidden_area_reconstructed",
+                  "repaired_image_asset_id",
+                  "joint_padding",
+                  "z_order",
+                  "prompt",
+                  "prepared_at",
+                  "repaired_at"
+                ]
+              },
               "authoring": {
                 "type": "object",
                 "properties": {
@@ -3240,6 +3475,7 @@
               "bone_hint",
               "default_draw_layer",
               "occlusion",
+              "repair",
               "authoring",
               "created_at",
               "updated_at"
@@ -3282,13 +3518,17 @@
           },
           "mask_url": {
             "type": "string"
+          },
+          "repaired_url": {
+            "type": "string"
           }
         },
         "additionalProperties": false,
         "required": [
           "part",
           "cutout_url",
-          "mask_url"
+          "mask_url",
+          "repaired_url"
         ],
         "$defs": {
           "PartAsset": {
@@ -3342,9 +3582,13 @@
                 "type": "string",
                 "enum": [
                   "draft",
+                  "segmented",
+                  "needs_repair",
+                  "repaired",
                   "processing",
                   "ready",
                   "approved",
+                  "rig_ready",
                   "failed",
                   "archived"
                 ]
@@ -3458,6 +3702,105 @@
                   "reason"
                 ]
               },
+              "repair": {
+                "type": "object",
+                "properties": {
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "not_required",
+                      "needed",
+                      "prepared",
+                      "repaired"
+                    ]
+                  },
+                  "reason": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "hidden_area_reconstructed": {
+                    "type": "boolean"
+                  },
+                  "repaired_image_asset_id": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "joint_padding": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 256
+                    }
+                  },
+                  "z_order": {
+                    "type": "integer",
+                    "minimum": -1000,
+                    "maximum": 1000
+                  },
+                  "prompt": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "prepared_at": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "repaired_at": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "required",
+                  "state",
+                  "reason",
+                  "hidden_area_reconstructed",
+                  "repaired_image_asset_id",
+                  "joint_padding",
+                  "z_order",
+                  "prompt",
+                  "prepared_at",
+                  "repaired_at"
+                ]
+              },
               "authoring": {
                 "type": "object",
                 "properties": {
@@ -3524,6 +3867,7 @@
               "bone_hint",
               "default_draw_layer",
               "occlusion",
+              "repair",
               "authoring",
               "created_at",
               "updated_at"
@@ -3623,9 +3967,13 @@
                 "type": "string",
                 "enum": [
                   "draft",
+                  "segmented",
+                  "needs_repair",
+                  "repaired",
                   "processing",
                   "ready",
                   "approved",
+                  "rig_ready",
                   "failed",
                   "archived"
                 ]
@@ -3739,6 +4087,105 @@
                   "reason"
                 ]
               },
+              "repair": {
+                "type": "object",
+                "properties": {
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "not_required",
+                      "needed",
+                      "prepared",
+                      "repaired"
+                    ]
+                  },
+                  "reason": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "hidden_area_reconstructed": {
+                    "type": "boolean"
+                  },
+                  "repaired_image_asset_id": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "joint_padding": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 256
+                    }
+                  },
+                  "z_order": {
+                    "type": "integer",
+                    "minimum": -1000,
+                    "maximum": 1000
+                  },
+                  "prompt": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "prepared_at": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "repaired_at": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "required",
+                  "state",
+                  "reason",
+                  "hidden_area_reconstructed",
+                  "repaired_image_asset_id",
+                  "joint_padding",
+                  "z_order",
+                  "prompt",
+                  "prepared_at",
+                  "repaired_at"
+                ]
+              },
               "authoring": {
                 "type": "object",
                 "properties": {
@@ -3805,6 +4252,7 @@
               "bone_hint",
               "default_draw_layer",
               "occlusion",
+              "repair",
               "authoring",
               "created_at",
               "updated_at"
@@ -3903,9 +4351,13 @@
                 "type": "string",
                 "enum": [
                   "draft",
+                  "segmented",
+                  "needs_repair",
+                  "repaired",
                   "processing",
                   "ready",
                   "approved",
+                  "rig_ready",
                   "failed",
                   "archived"
                 ]
@@ -4019,6 +4471,105 @@
                   "reason"
                 ]
               },
+              "repair": {
+                "type": "object",
+                "properties": {
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "not_required",
+                      "needed",
+                      "prepared",
+                      "repaired"
+                    ]
+                  },
+                  "reason": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "hidden_area_reconstructed": {
+                    "type": "boolean"
+                  },
+                  "repaired_image_asset_id": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "joint_padding": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 256
+                    }
+                  },
+                  "z_order": {
+                    "type": "integer",
+                    "minimum": -1000,
+                    "maximum": 1000
+                  },
+                  "prompt": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "prepared_at": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "repaired_at": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "required",
+                  "state",
+                  "reason",
+                  "hidden_area_reconstructed",
+                  "repaired_image_asset_id",
+                  "joint_padding",
+                  "z_order",
+                  "prompt",
+                  "prepared_at",
+                  "repaired_at"
+                ]
+              },
               "authoring": {
                 "type": "object",
                 "properties": {
@@ -4085,6 +4636,7 @@
               "bone_hint",
               "default_draw_layer",
               "occlusion",
+              "repair",
               "authoring",
               "created_at",
               "updated_at"
@@ -4274,9 +4826,13 @@
                 "type": "string",
                 "enum": [
                   "draft",
+                  "segmented",
+                  "needs_repair",
+                  "repaired",
                   "processing",
                   "ready",
                   "approved",
+                  "rig_ready",
                   "failed",
                   "archived"
                 ]
@@ -4390,6 +4946,105 @@
                   "reason"
                 ]
               },
+              "repair": {
+                "type": "object",
+                "properties": {
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "not_required",
+                      "needed",
+                      "prepared",
+                      "repaired"
+                    ]
+                  },
+                  "reason": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "hidden_area_reconstructed": {
+                    "type": "boolean"
+                  },
+                  "repaired_image_asset_id": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "joint_padding": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 256
+                    }
+                  },
+                  "z_order": {
+                    "type": "integer",
+                    "minimum": -1000,
+                    "maximum": 1000
+                  },
+                  "prompt": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "prepared_at": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "repaired_at": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "required",
+                  "state",
+                  "reason",
+                  "hidden_area_reconstructed",
+                  "repaired_image_asset_id",
+                  "joint_padding",
+                  "z_order",
+                  "prompt",
+                  "prepared_at",
+                  "repaired_at"
+                ]
+              },
               "authoring": {
                 "type": "object",
                 "properties": {
@@ -4456,6 +5111,7 @@
               "bone_hint",
               "default_draw_layer",
               "occlusion",
+              "repair",
               "authoring",
               "created_at",
               "updated_at"
@@ -4471,9 +5127,2249 @@
       }
     },
     {
+      "name": "parts.inspect_occlusion",
+      "title": "Inspect part occlusion",
+      "description": "Inspect extracted parts for hidden-area reconstruction, joint overlap and current rig readiness.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "character_id": {
+            "type": "string",
+            "pattern": "^char_[A-Za-z0-9_-]+$"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "S",
+              "SW",
+              "W",
+              "NW",
+              "N",
+              "NE",
+              "E",
+              "SE"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "character_id"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "character_id": {
+            "type": "string",
+            "pattern": "^char_[A-Za-z0-9_-]+$"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "S",
+              "SW",
+              "W",
+              "NW",
+              "N",
+              "NE",
+              "E",
+              "SE"
+            ]
+          },
+          "parts_checked": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "needs_repair_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "repaired_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "inspections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/PartOcclusionInspection"
+            }
+          },
+          "next_tool": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "character_id",
+          "parts_checked",
+          "needs_repair_count",
+          "repaired_count",
+          "inspections",
+          "next_tool"
+        ],
+        "$defs": {
+          "PartOcclusionInspection": {
+            "type": "object",
+            "properties": {
+              "part_id": {
+                "type": "string",
+                "pattern": "^part_[A-Za-z0-9_-]+$"
+              },
+              "direction": {
+                "type": "string",
+                "enum": [
+                  "S",
+                  "SW",
+                  "W",
+                  "NW",
+                  "N",
+                  "NE",
+                  "E",
+                  "SE"
+                ]
+              },
+              "name": {
+                "type": "string"
+              },
+              "needs_repair": {
+                "type": "boolean"
+              },
+              "repair_state": {
+                "type": "string",
+                "enum": [
+                  "not_required",
+                  "needed",
+                  "prepared",
+                  "repaired"
+                ]
+              },
+              "reason": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "hidden_area_reconstructed": {
+                "type": "boolean"
+              },
+              "joint_padding": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 256
+                }
+              },
+              "z_order": {
+                "type": "integer"
+              },
+              "rig_ready": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "part_id",
+              "direction",
+              "name",
+              "needs_repair",
+              "repair_state",
+              "reason",
+              "hidden_area_reconstructed",
+              "joint_padding",
+              "z_order",
+              "rig_ready"
+            ]
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "parts.prepare_repair",
+      "title": "Prepare part repair",
+      "description": "Build and persist a deterministic repair prompt for one isolated part without calling an image provider.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "part_id": {
+            "type": "string",
+            "pattern": "^part_[A-Za-z0-9_-]+$"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "part_id"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "part": {
+            "$ref": "#/$defs/PartAsset"
+          },
+          "prompt": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "part",
+          "prompt"
+        ],
+        "$defs": {
+          "PartAsset": {
+            "type": "object",
+            "properties": {
+              "part_id": {
+                "type": "string",
+                "pattern": "^part_[A-Za-z0-9_-]+$"
+              },
+              "character_id": {
+                "type": "string",
+                "pattern": "^char_[A-Za-z0-9_-]+$"
+              },
+              "direction": {
+                "type": "string",
+                "enum": [
+                  "S",
+                  "SW",
+                  "W",
+                  "NW",
+                  "N",
+                  "NE",
+                  "E",
+                  "SE"
+                ]
+              },
+              "name": {
+                "type": "string"
+              },
+              "template": {
+                "type": "string"
+              },
+              "category": {
+                "type": "string",
+                "enum": [
+                  "body_part",
+                  "hair",
+                  "equipment",
+                  "shadow",
+                  "fx",
+                  "custom"
+                ]
+              },
+              "image_asset_id": {
+                "type": "string"
+              },
+              "mask_asset_id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "draft",
+                  "segmented",
+                  "needs_repair",
+                  "repaired",
+                  "processing",
+                  "ready",
+                  "approved",
+                  "rig_ready",
+                  "failed",
+                  "archived"
+                ]
+              },
+              "approved": {
+                "type": "boolean",
+                "default": false
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "source": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "base_view",
+                      "manual_mask"
+                    ]
+                  },
+                  "direction": {
+                    "type": "string",
+                    "enum": [
+                      "S",
+                      "SW",
+                      "W",
+                      "NW",
+                      "N"
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "type",
+                  "direction"
+                ]
+              },
+              "bounds": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "y": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "width": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "height": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y",
+                  "width",
+                  "height"
+                ]
+              },
+              "pivot": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y"
+                ]
+              },
+              "bone_hint": {
+                "type": "string"
+              },
+              "default_draw_layer": {
+                "type": "integer"
+              },
+              "occlusion": {
+                "type": "object",
+                "properties": {
+                  "needs_completion": {
+                    "type": "boolean"
+                  },
+                  "reason": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "needs_completion",
+                  "reason"
+                ]
+              },
+              "repair": {
+                "type": "object",
+                "properties": {
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "not_required",
+                      "needed",
+                      "prepared",
+                      "repaired"
+                    ]
+                  },
+                  "reason": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "hidden_area_reconstructed": {
+                    "type": "boolean"
+                  },
+                  "repaired_image_asset_id": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "joint_padding": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 256
+                    }
+                  },
+                  "z_order": {
+                    "type": "integer",
+                    "minimum": -1000,
+                    "maximum": 1000
+                  },
+                  "prompt": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "prepared_at": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "repaired_at": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "required",
+                  "state",
+                  "reason",
+                  "hidden_area_reconstructed",
+                  "repaired_image_asset_id",
+                  "joint_padding",
+                  "z_order",
+                  "prompt",
+                  "prepared_at",
+                  "repaired_at"
+                ]
+              },
+              "authoring": {
+                "type": "object",
+                "properties": {
+                  "source_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "source_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "runtime_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "runtime_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "authoring_recommended_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "authoring_recommended_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "source_width",
+                  "source_height",
+                  "runtime_width",
+                  "runtime_height",
+                  "authoring_recommended_width",
+                  "authoring_recommended_height"
+                ]
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updated_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "part_id",
+              "character_id",
+              "direction",
+              "name",
+              "template",
+              "category",
+              "image_asset_id",
+              "mask_asset_id",
+              "status",
+              "approved",
+              "confidence",
+              "source",
+              "bounds",
+              "pivot",
+              "bone_hint",
+              "default_draw_layer",
+              "occlusion",
+              "repair",
+              "authoring",
+              "created_at",
+              "updated_at"
+            ]
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "parts.replace_repaired_image",
+      "title": "Replace repaired part image",
+      "description": "Persist a full-canvas transparent repaired PNG for a part and mark hidden-area reconstruction complete.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "part_id": {
+            "type": "string",
+            "pattern": "^part_[A-Za-z0-9_-]+$"
+          },
+          "image_data_url": {
+            "type": "string",
+            "pattern": "^data:image/png;base64,"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "part_id",
+          "image_data_url"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "part": {
+            "$ref": "#/$defs/PartAsset"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "part"
+        ],
+        "$defs": {
+          "PartAsset": {
+            "type": "object",
+            "properties": {
+              "part_id": {
+                "type": "string",
+                "pattern": "^part_[A-Za-z0-9_-]+$"
+              },
+              "character_id": {
+                "type": "string",
+                "pattern": "^char_[A-Za-z0-9_-]+$"
+              },
+              "direction": {
+                "type": "string",
+                "enum": [
+                  "S",
+                  "SW",
+                  "W",
+                  "NW",
+                  "N",
+                  "NE",
+                  "E",
+                  "SE"
+                ]
+              },
+              "name": {
+                "type": "string"
+              },
+              "template": {
+                "type": "string"
+              },
+              "category": {
+                "type": "string",
+                "enum": [
+                  "body_part",
+                  "hair",
+                  "equipment",
+                  "shadow",
+                  "fx",
+                  "custom"
+                ]
+              },
+              "image_asset_id": {
+                "type": "string"
+              },
+              "mask_asset_id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "draft",
+                  "segmented",
+                  "needs_repair",
+                  "repaired",
+                  "processing",
+                  "ready",
+                  "approved",
+                  "rig_ready",
+                  "failed",
+                  "archived"
+                ]
+              },
+              "approved": {
+                "type": "boolean",
+                "default": false
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "source": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "base_view",
+                      "manual_mask"
+                    ]
+                  },
+                  "direction": {
+                    "type": "string",
+                    "enum": [
+                      "S",
+                      "SW",
+                      "W",
+                      "NW",
+                      "N"
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "type",
+                  "direction"
+                ]
+              },
+              "bounds": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "y": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "width": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "height": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y",
+                  "width",
+                  "height"
+                ]
+              },
+              "pivot": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y"
+                ]
+              },
+              "bone_hint": {
+                "type": "string"
+              },
+              "default_draw_layer": {
+                "type": "integer"
+              },
+              "occlusion": {
+                "type": "object",
+                "properties": {
+                  "needs_completion": {
+                    "type": "boolean"
+                  },
+                  "reason": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "needs_completion",
+                  "reason"
+                ]
+              },
+              "repair": {
+                "type": "object",
+                "properties": {
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "not_required",
+                      "needed",
+                      "prepared",
+                      "repaired"
+                    ]
+                  },
+                  "reason": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "hidden_area_reconstructed": {
+                    "type": "boolean"
+                  },
+                  "repaired_image_asset_id": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "joint_padding": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 256
+                    }
+                  },
+                  "z_order": {
+                    "type": "integer",
+                    "minimum": -1000,
+                    "maximum": 1000
+                  },
+                  "prompt": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "prepared_at": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "repaired_at": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "required",
+                  "state",
+                  "reason",
+                  "hidden_area_reconstructed",
+                  "repaired_image_asset_id",
+                  "joint_padding",
+                  "z_order",
+                  "prompt",
+                  "prepared_at",
+                  "repaired_at"
+                ]
+              },
+              "authoring": {
+                "type": "object",
+                "properties": {
+                  "source_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "source_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "runtime_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "runtime_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "authoring_recommended_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "authoring_recommended_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "source_width",
+                  "source_height",
+                  "runtime_width",
+                  "runtime_height",
+                  "authoring_recommended_width",
+                  "authoring_recommended_height"
+                ]
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updated_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "part_id",
+              "character_id",
+              "direction",
+              "name",
+              "template",
+              "category",
+              "image_asset_id",
+              "mask_asset_id",
+              "status",
+              "approved",
+              "confidence",
+              "source",
+              "bounds",
+              "pivot",
+              "bone_hint",
+              "default_draw_layer",
+              "occlusion",
+              "repair",
+              "authoring",
+              "created_at",
+              "updated_at"
+            ]
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "parts.set_joint_padding",
+      "title": "Set joint padding",
+      "description": "Set per-joint overlap padding in pixels for a part.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "part_id": {
+            "type": "string",
+            "pattern": "^part_[A-Za-z0-9_-]+$"
+          },
+          "joint_padding": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 256
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "part_id",
+          "joint_padding"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "part": {
+            "$ref": "#/$defs/PartAsset"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "part"
+        ],
+        "$defs": {
+          "PartAsset": {
+            "type": "object",
+            "properties": {
+              "part_id": {
+                "type": "string",
+                "pattern": "^part_[A-Za-z0-9_-]+$"
+              },
+              "character_id": {
+                "type": "string",
+                "pattern": "^char_[A-Za-z0-9_-]+$"
+              },
+              "direction": {
+                "type": "string",
+                "enum": [
+                  "S",
+                  "SW",
+                  "W",
+                  "NW",
+                  "N",
+                  "NE",
+                  "E",
+                  "SE"
+                ]
+              },
+              "name": {
+                "type": "string"
+              },
+              "template": {
+                "type": "string"
+              },
+              "category": {
+                "type": "string",
+                "enum": [
+                  "body_part",
+                  "hair",
+                  "equipment",
+                  "shadow",
+                  "fx",
+                  "custom"
+                ]
+              },
+              "image_asset_id": {
+                "type": "string"
+              },
+              "mask_asset_id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "draft",
+                  "segmented",
+                  "needs_repair",
+                  "repaired",
+                  "processing",
+                  "ready",
+                  "approved",
+                  "rig_ready",
+                  "failed",
+                  "archived"
+                ]
+              },
+              "approved": {
+                "type": "boolean",
+                "default": false
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "source": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "base_view",
+                      "manual_mask"
+                    ]
+                  },
+                  "direction": {
+                    "type": "string",
+                    "enum": [
+                      "S",
+                      "SW",
+                      "W",
+                      "NW",
+                      "N"
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "type",
+                  "direction"
+                ]
+              },
+              "bounds": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "y": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "width": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "height": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y",
+                  "width",
+                  "height"
+                ]
+              },
+              "pivot": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y"
+                ]
+              },
+              "bone_hint": {
+                "type": "string"
+              },
+              "default_draw_layer": {
+                "type": "integer"
+              },
+              "occlusion": {
+                "type": "object",
+                "properties": {
+                  "needs_completion": {
+                    "type": "boolean"
+                  },
+                  "reason": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "needs_completion",
+                  "reason"
+                ]
+              },
+              "repair": {
+                "type": "object",
+                "properties": {
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "not_required",
+                      "needed",
+                      "prepared",
+                      "repaired"
+                    ]
+                  },
+                  "reason": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "hidden_area_reconstructed": {
+                    "type": "boolean"
+                  },
+                  "repaired_image_asset_id": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "joint_padding": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 256
+                    }
+                  },
+                  "z_order": {
+                    "type": "integer",
+                    "minimum": -1000,
+                    "maximum": 1000
+                  },
+                  "prompt": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "prepared_at": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "repaired_at": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "required",
+                  "state",
+                  "reason",
+                  "hidden_area_reconstructed",
+                  "repaired_image_asset_id",
+                  "joint_padding",
+                  "z_order",
+                  "prompt",
+                  "prepared_at",
+                  "repaired_at"
+                ]
+              },
+              "authoring": {
+                "type": "object",
+                "properties": {
+                  "source_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "source_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "runtime_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "runtime_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "authoring_recommended_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "authoring_recommended_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "source_width",
+                  "source_height",
+                  "runtime_width",
+                  "runtime_height",
+                  "authoring_recommended_width",
+                  "authoring_recommended_height"
+                ]
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updated_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "part_id",
+              "character_id",
+              "direction",
+              "name",
+              "template",
+              "category",
+              "image_asset_id",
+              "mask_asset_id",
+              "status",
+              "approved",
+              "confidence",
+              "source",
+              "bounds",
+              "pivot",
+              "bone_hint",
+              "default_draw_layer",
+              "occlusion",
+              "repair",
+              "authoring",
+              "created_at",
+              "updated_at"
+            ]
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "parts.set_z_order",
+      "title": "Set part z-order",
+      "description": "Set the per-direction draw-order integer for a part.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "part_id": {
+            "type": "string",
+            "pattern": "^part_[A-Za-z0-9_-]+$"
+          },
+          "z_order": {
+            "type": "integer",
+            "minimum": -1000,
+            "maximum": 1000
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "part_id",
+          "z_order"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "part": {
+            "$ref": "#/$defs/PartAsset"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "part"
+        ],
+        "$defs": {
+          "PartAsset": {
+            "type": "object",
+            "properties": {
+              "part_id": {
+                "type": "string",
+                "pattern": "^part_[A-Za-z0-9_-]+$"
+              },
+              "character_id": {
+                "type": "string",
+                "pattern": "^char_[A-Za-z0-9_-]+$"
+              },
+              "direction": {
+                "type": "string",
+                "enum": [
+                  "S",
+                  "SW",
+                  "W",
+                  "NW",
+                  "N",
+                  "NE",
+                  "E",
+                  "SE"
+                ]
+              },
+              "name": {
+                "type": "string"
+              },
+              "template": {
+                "type": "string"
+              },
+              "category": {
+                "type": "string",
+                "enum": [
+                  "body_part",
+                  "hair",
+                  "equipment",
+                  "shadow",
+                  "fx",
+                  "custom"
+                ]
+              },
+              "image_asset_id": {
+                "type": "string"
+              },
+              "mask_asset_id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "draft",
+                  "segmented",
+                  "needs_repair",
+                  "repaired",
+                  "processing",
+                  "ready",
+                  "approved",
+                  "rig_ready",
+                  "failed",
+                  "archived"
+                ]
+              },
+              "approved": {
+                "type": "boolean",
+                "default": false
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "source": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "base_view",
+                      "manual_mask"
+                    ]
+                  },
+                  "direction": {
+                    "type": "string",
+                    "enum": [
+                      "S",
+                      "SW",
+                      "W",
+                      "NW",
+                      "N"
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "type",
+                  "direction"
+                ]
+              },
+              "bounds": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "y": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "width": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "height": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y",
+                  "width",
+                  "height"
+                ]
+              },
+              "pivot": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y"
+                ]
+              },
+              "bone_hint": {
+                "type": "string"
+              },
+              "default_draw_layer": {
+                "type": "integer"
+              },
+              "occlusion": {
+                "type": "object",
+                "properties": {
+                  "needs_completion": {
+                    "type": "boolean"
+                  },
+                  "reason": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "needs_completion",
+                  "reason"
+                ]
+              },
+              "repair": {
+                "type": "object",
+                "properties": {
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "not_required",
+                      "needed",
+                      "prepared",
+                      "repaired"
+                    ]
+                  },
+                  "reason": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "hidden_area_reconstructed": {
+                    "type": "boolean"
+                  },
+                  "repaired_image_asset_id": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "joint_padding": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 256
+                    }
+                  },
+                  "z_order": {
+                    "type": "integer",
+                    "minimum": -1000,
+                    "maximum": 1000
+                  },
+                  "prompt": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "prepared_at": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "repaired_at": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "required",
+                  "state",
+                  "reason",
+                  "hidden_area_reconstructed",
+                  "repaired_image_asset_id",
+                  "joint_padding",
+                  "z_order",
+                  "prompt",
+                  "prepared_at",
+                  "repaired_at"
+                ]
+              },
+              "authoring": {
+                "type": "object",
+                "properties": {
+                  "source_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "source_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "runtime_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "runtime_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "authoring_recommended_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "authoring_recommended_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "source_width",
+                  "source_height",
+                  "runtime_width",
+                  "runtime_height",
+                  "authoring_recommended_width",
+                  "authoring_recommended_height"
+                ]
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updated_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "part_id",
+              "character_id",
+              "direction",
+              "name",
+              "template",
+              "category",
+              "image_asset_id",
+              "mask_asset_id",
+              "status",
+              "approved",
+              "confidence",
+              "source",
+              "bounds",
+              "pivot",
+              "bone_hint",
+              "default_draw_layer",
+              "occlusion",
+              "repair",
+              "authoring",
+              "created_at",
+              "updated_at"
+            ]
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "parts.mark_repaired",
+      "title": "Mark part repaired",
+      "description": "Confirm a persisted repaired.png as the completed hidden-area reconstruction for a part.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "part_id": {
+            "type": "string",
+            "pattern": "^part_[A-Za-z0-9_-]+$"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "part_id"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "part": {
+            "$ref": "#/$defs/PartAsset"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "part"
+        ],
+        "$defs": {
+          "PartAsset": {
+            "type": "object",
+            "properties": {
+              "part_id": {
+                "type": "string",
+                "pattern": "^part_[A-Za-z0-9_-]+$"
+              },
+              "character_id": {
+                "type": "string",
+                "pattern": "^char_[A-Za-z0-9_-]+$"
+              },
+              "direction": {
+                "type": "string",
+                "enum": [
+                  "S",
+                  "SW",
+                  "W",
+                  "NW",
+                  "N",
+                  "NE",
+                  "E",
+                  "SE"
+                ]
+              },
+              "name": {
+                "type": "string"
+              },
+              "template": {
+                "type": "string"
+              },
+              "category": {
+                "type": "string",
+                "enum": [
+                  "body_part",
+                  "hair",
+                  "equipment",
+                  "shadow",
+                  "fx",
+                  "custom"
+                ]
+              },
+              "image_asset_id": {
+                "type": "string"
+              },
+              "mask_asset_id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "draft",
+                  "segmented",
+                  "needs_repair",
+                  "repaired",
+                  "processing",
+                  "ready",
+                  "approved",
+                  "rig_ready",
+                  "failed",
+                  "archived"
+                ]
+              },
+              "approved": {
+                "type": "boolean",
+                "default": false
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "source": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "base_view",
+                      "manual_mask"
+                    ]
+                  },
+                  "direction": {
+                    "type": "string",
+                    "enum": [
+                      "S",
+                      "SW",
+                      "W",
+                      "NW",
+                      "N"
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "type",
+                  "direction"
+                ]
+              },
+              "bounds": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "y": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "width": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "height": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y",
+                  "width",
+                  "height"
+                ]
+              },
+              "pivot": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y"
+                ]
+              },
+              "bone_hint": {
+                "type": "string"
+              },
+              "default_draw_layer": {
+                "type": "integer"
+              },
+              "occlusion": {
+                "type": "object",
+                "properties": {
+                  "needs_completion": {
+                    "type": "boolean"
+                  },
+                  "reason": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "needs_completion",
+                  "reason"
+                ]
+              },
+              "repair": {
+                "type": "object",
+                "properties": {
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "not_required",
+                      "needed",
+                      "prepared",
+                      "repaired"
+                    ]
+                  },
+                  "reason": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "hidden_area_reconstructed": {
+                    "type": "boolean"
+                  },
+                  "repaired_image_asset_id": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "joint_padding": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 256
+                    }
+                  },
+                  "z_order": {
+                    "type": "integer",
+                    "minimum": -1000,
+                    "maximum": 1000
+                  },
+                  "prompt": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "prepared_at": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "repaired_at": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "required",
+                  "state",
+                  "reason",
+                  "hidden_area_reconstructed",
+                  "repaired_image_asset_id",
+                  "joint_padding",
+                  "z_order",
+                  "prompt",
+                  "prepared_at",
+                  "repaired_at"
+                ]
+              },
+              "authoring": {
+                "type": "object",
+                "properties": {
+                  "source_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "source_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "runtime_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "runtime_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "authoring_recommended_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "authoring_recommended_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "source_width",
+                  "source_height",
+                  "runtime_width",
+                  "runtime_height",
+                  "authoring_recommended_width",
+                  "authoring_recommended_height"
+                ]
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updated_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "part_id",
+              "character_id",
+              "direction",
+              "name",
+              "template",
+              "category",
+              "image_asset_id",
+              "mask_asset_id",
+              "status",
+              "approved",
+              "confidence",
+              "source",
+              "bounds",
+              "pivot",
+              "bone_hint",
+              "default_draw_layer",
+              "occlusion",
+              "repair",
+              "authoring",
+              "created_at",
+              "updated_at"
+            ]
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "parts.validate_rig_readiness",
+      "title": "Validate part rig readiness",
+      "description": "Validate approval, hidden-area repair, joint padding and z-order before rig creation.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "character_id": {
+            "type": "string",
+            "pattern": "^char_[A-Za-z0-9_-]+$"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "S",
+              "SW",
+              "W",
+              "NW",
+              "N",
+              "NE",
+              "E",
+              "SE"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "character_id"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "valid": {
+            "type": "boolean"
+          },
+          "character_id": {
+            "type": "string",
+            "pattern": "^char_[A-Za-z0-9_-]+$"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "S",
+              "SW",
+              "W",
+              "NW",
+              "N",
+              "NE",
+              "E",
+              "SE"
+            ]
+          },
+          "parts_checked": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "rig_ready_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "parts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/PartRigReadiness"
+            }
+          },
+          "next_tool": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "valid",
+          "character_id",
+          "parts_checked",
+          "rig_ready_count",
+          "warnings",
+          "errors",
+          "parts",
+          "next_tool"
+        ],
+        "$defs": {
+          "PartRigReadiness": {
+            "type": "object",
+            "properties": {
+              "part_id": {
+                "type": "string",
+                "pattern": "^part_[A-Za-z0-9_-]+$"
+              },
+              "name": {
+                "type": "string"
+              },
+              "direction": {
+                "type": "string",
+                "enum": [
+                  "S",
+                  "SW",
+                  "W",
+                  "NW",
+                  "N",
+                  "NE",
+                  "E",
+                  "SE"
+                ]
+              },
+              "rig_ready": {
+                "type": "boolean"
+              },
+              "reasons": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "part_id",
+              "name",
+              "direction",
+              "rig_ready",
+              "reasons"
+            ]
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
       "name": "rig.create",
       "title": "Create rig",
-      "description": "Create a character rig from a preset and optionally auto-bind approved parts.",
+      "description": "Create a character rig from a preset after all extracted parts are approved and repair-complete; optionally auto-bind rig-ready parts.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -4542,9 +7438,13 @@
                 "type": "string",
                 "enum": [
                   "draft",
+                  "segmented",
+                  "needs_repair",
+                  "repaired",
                   "processing",
                   "ready",
                   "approved",
+                  "rig_ready",
                   "failed",
                   "archived"
                 ]
@@ -4564,6 +7464,61 @@
               "bindings",
               "status",
               "version"
+            ]
+          },
+          "Socket": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "bone_name": {
+                "type": "string"
+              },
+              "slot_type": {
+                "type": "string",
+                "enum": [
+                  "head",
+                  "weapon",
+                  "shield",
+                  "back",
+                  "fx",
+                  "custom"
+                ]
+              },
+              "offset": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "y": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "rotation": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "scale_x": {
+                    "type": "number",
+                    "default": 1
+                  },
+                  "scale_y": {
+                    "type": "number",
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "bone_name",
+              "slot_type",
+              "offset"
             ]
           },
           "Binding": {
@@ -4688,61 +7643,6 @@
               "name",
               "parent",
               "position"
-            ]
-          },
-          "Socket": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "bone_name": {
-                "type": "string"
-              },
-              "slot_type": {
-                "type": "string",
-                "enum": [
-                  "head",
-                  "weapon",
-                  "shield",
-                  "back",
-                  "fx",
-                  "custom"
-                ]
-              },
-              "offset": {
-                "type": "object",
-                "properties": {
-                  "x": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "y": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "rotation": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "scale_x": {
-                    "type": "number",
-                    "default": 1
-                  },
-                  "scale_y": {
-                    "type": "number",
-                    "default": 1
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "bone_name",
-              "slot_type",
-              "offset"
             ]
           }
         }
@@ -4818,9 +7718,13 @@
                 "type": "string",
                 "enum": [
                   "draft",
+                  "segmented",
+                  "needs_repair",
+                  "repaired",
                   "processing",
                   "ready",
                   "approved",
+                  "rig_ready",
                   "failed",
                   "archived"
                 ]
@@ -4840,6 +7744,61 @@
               "bindings",
               "status",
               "version"
+            ]
+          },
+          "Socket": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "bone_name": {
+                "type": "string"
+              },
+              "slot_type": {
+                "type": "string",
+                "enum": [
+                  "head",
+                  "weapon",
+                  "shield",
+                  "back",
+                  "fx",
+                  "custom"
+                ]
+              },
+              "offset": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "y": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "rotation": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "scale_x": {
+                    "type": "number",
+                    "default": 1
+                  },
+                  "scale_y": {
+                    "type": "number",
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "bone_name",
+              "slot_type",
+              "offset"
             ]
           },
           "Binding": {
@@ -4964,61 +7923,6 @@
               "name",
               "parent",
               "position"
-            ]
-          },
-          "Socket": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "bone_name": {
-                "type": "string"
-              },
-              "slot_type": {
-                "type": "string",
-                "enum": [
-                  "head",
-                  "weapon",
-                  "shield",
-                  "back",
-                  "fx",
-                  "custom"
-                ]
-              },
-              "offset": {
-                "type": "object",
-                "properties": {
-                  "x": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "y": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "rotation": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "scale_x": {
-                    "type": "number",
-                    "default": 1
-                  },
-                  "scale_y": {
-                    "type": "number",
-                    "default": 1
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "bone_name",
-              "slot_type",
-              "offset"
             ]
           }
         }
@@ -5243,9 +8147,13 @@
                 "type": "string",
                 "enum": [
                   "draft",
+                  "segmented",
+                  "needs_repair",
+                  "repaired",
                   "processing",
                   "ready",
                   "approved",
+                  "rig_ready",
                   "failed",
                   "archived"
                 ]
@@ -5265,6 +8173,61 @@
               "bindings",
               "status",
               "version"
+            ]
+          },
+          "Socket": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "bone_name": {
+                "type": "string"
+              },
+              "slot_type": {
+                "type": "string",
+                "enum": [
+                  "head",
+                  "weapon",
+                  "shield",
+                  "back",
+                  "fx",
+                  "custom"
+                ]
+              },
+              "offset": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "y": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "rotation": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "scale_x": {
+                    "type": "number",
+                    "default": 1
+                  },
+                  "scale_y": {
+                    "type": "number",
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "bone_name",
+              "slot_type",
+              "offset"
             ]
           },
           "Binding": {
@@ -5390,61 +8353,6 @@
               "parent",
               "position"
             ]
-          },
-          "Socket": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "bone_name": {
-                "type": "string"
-              },
-              "slot_type": {
-                "type": "string",
-                "enum": [
-                  "head",
-                  "weapon",
-                  "shield",
-                  "back",
-                  "fx",
-                  "custom"
-                ]
-              },
-              "offset": {
-                "type": "object",
-                "properties": {
-                  "x": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "y": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "rotation": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "scale_x": {
-                    "type": "number",
-                    "default": 1
-                  },
-                  "scale_y": {
-                    "type": "number",
-                    "default": 1
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "bone_name",
-              "slot_type",
-              "offset"
-            ]
           }
         }
       },
@@ -5458,7 +8366,7 @@
     {
       "name": "rig.auto_bind_parts",
       "title": "Auto bind parts",
-      "description": "Bind approved character parts to matching preset bones; draft parts are skipped and reported.",
+      "description": "Bind approved, repair-complete character parts to matching preset bones; incomplete parts are skipped and reported.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -5564,9 +8472,13 @@
                 "type": "string",
                 "enum": [
                   "draft",
+                  "segmented",
+                  "needs_repair",
+                  "repaired",
                   "processing",
                   "ready",
                   "approved",
+                  "rig_ready",
                   "failed",
                   "archived"
                 ]
@@ -5586,6 +8498,61 @@
               "bindings",
               "status",
               "version"
+            ]
+          },
+          "Socket": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "bone_name": {
+                "type": "string"
+              },
+              "slot_type": {
+                "type": "string",
+                "enum": [
+                  "head",
+                  "weapon",
+                  "shield",
+                  "back",
+                  "fx",
+                  "custom"
+                ]
+              },
+              "offset": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "y": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "rotation": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "scale_x": {
+                    "type": "number",
+                    "default": 1
+                  },
+                  "scale_y": {
+                    "type": "number",
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "bone_name",
+              "slot_type",
+              "offset"
             ]
           },
           "Binding": {
@@ -5710,61 +8677,6 @@
               "name",
               "parent",
               "position"
-            ]
-          },
-          "Socket": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "bone_name": {
-                "type": "string"
-              },
-              "slot_type": {
-                "type": "string",
-                "enum": [
-                  "head",
-                  "weapon",
-                  "shield",
-                  "back",
-                  "fx",
-                  "custom"
-                ]
-              },
-              "offset": {
-                "type": "object",
-                "properties": {
-                  "x": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "y": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "rotation": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "scale_x": {
-                    "type": "number",
-                    "default": 1
-                  },
-                  "scale_y": {
-                    "type": "number",
-                    "default": 1
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "bone_name",
-              "slot_type",
-              "offset"
             ]
           }
         }
@@ -5898,9 +8810,13 @@
                 "type": "string",
                 "enum": [
                   "draft",
+                  "segmented",
+                  "needs_repair",
+                  "repaired",
                   "processing",
                   "ready",
                   "approved",
+                  "rig_ready",
                   "failed",
                   "archived"
                 ]
@@ -5920,6 +8836,61 @@
               "bindings",
               "status",
               "version"
+            ]
+          },
+          "Socket": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "bone_name": {
+                "type": "string"
+              },
+              "slot_type": {
+                "type": "string",
+                "enum": [
+                  "head",
+                  "weapon",
+                  "shield",
+                  "back",
+                  "fx",
+                  "custom"
+                ]
+              },
+              "offset": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "y": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "rotation": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "scale_x": {
+                    "type": "number",
+                    "default": 1
+                  },
+                  "scale_y": {
+                    "type": "number",
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "bone_name",
+              "slot_type",
+              "offset"
             ]
           },
           "Binding": {
@@ -6044,61 +9015,6 @@
               "name",
               "parent",
               "position"
-            ]
-          },
-          "Socket": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "bone_name": {
-                "type": "string"
-              },
-              "slot_type": {
-                "type": "string",
-                "enum": [
-                  "head",
-                  "weapon",
-                  "shield",
-                  "back",
-                  "fx",
-                  "custom"
-                ]
-              },
-              "offset": {
-                "type": "object",
-                "properties": {
-                  "x": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "y": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "rotation": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "scale_x": {
-                    "type": "number",
-                    "default": 1
-                  },
-                  "scale_y": {
-                    "type": "number",
-                    "default": 1
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "bone_name",
-              "slot_type",
-              "offset"
             ]
           }
         }
@@ -6220,9 +9136,13 @@
                 "type": "string",
                 "enum": [
                   "draft",
+                  "segmented",
+                  "needs_repair",
+                  "repaired",
                   "processing",
                   "ready",
                   "approved",
+                  "rig_ready",
                   "failed",
                   "archived"
                 ]
@@ -6242,6 +9162,61 @@
               "bindings",
               "status",
               "version"
+            ]
+          },
+          "Socket": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "bone_name": {
+                "type": "string"
+              },
+              "slot_type": {
+                "type": "string",
+                "enum": [
+                  "head",
+                  "weapon",
+                  "shield",
+                  "back",
+                  "fx",
+                  "custom"
+                ]
+              },
+              "offset": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "y": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "rotation": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "scale_x": {
+                    "type": "number",
+                    "default": 1
+                  },
+                  "scale_y": {
+                    "type": "number",
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "bone_name",
+              "slot_type",
+              "offset"
             ]
           },
           "Binding": {
@@ -6366,61 +9341,6 @@
               "name",
               "parent",
               "position"
-            ]
-          },
-          "Socket": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "bone_name": {
-                "type": "string"
-              },
-              "slot_type": {
-                "type": "string",
-                "enum": [
-                  "head",
-                  "weapon",
-                  "shield",
-                  "back",
-                  "fx",
-                  "custom"
-                ]
-              },
-              "offset": {
-                "type": "object",
-                "properties": {
-                  "x": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "y": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "rotation": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "scale_x": {
-                    "type": "number",
-                    "default": 1
-                  },
-                  "scale_y": {
-                    "type": "number",
-                    "default": 1
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "bone_name",
-              "slot_type",
-              "offset"
             ]
           }
         }
@@ -6547,9 +9467,13 @@
                 "type": "string",
                 "enum": [
                   "draft",
+                  "segmented",
+                  "needs_repair",
+                  "repaired",
                   "processing",
                   "ready",
                   "approved",
+                  "rig_ready",
                   "failed",
                   "archived"
                 ]
@@ -6569,6 +9493,61 @@
               "bindings",
               "status",
               "version"
+            ]
+          },
+          "Socket": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "bone_name": {
+                "type": "string"
+              },
+              "slot_type": {
+                "type": "string",
+                "enum": [
+                  "head",
+                  "weapon",
+                  "shield",
+                  "back",
+                  "fx",
+                  "custom"
+                ]
+              },
+              "offset": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "y": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "rotation": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "scale_x": {
+                    "type": "number",
+                    "default": 1
+                  },
+                  "scale_y": {
+                    "type": "number",
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "bone_name",
+              "slot_type",
+              "offset"
             ]
           },
           "Binding": {
@@ -6693,61 +9672,6 @@
               "name",
               "parent",
               "position"
-            ]
-          },
-          "Socket": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "bone_name": {
-                "type": "string"
-              },
-              "slot_type": {
-                "type": "string",
-                "enum": [
-                  "head",
-                  "weapon",
-                  "shield",
-                  "back",
-                  "fx",
-                  "custom"
-                ]
-              },
-              "offset": {
-                "type": "object",
-                "properties": {
-                  "x": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "y": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "rotation": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "scale_x": {
-                    "type": "number",
-                    "default": 1
-                  },
-                  "scale_y": {
-                    "type": "number",
-                    "default": 1
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "bone_name",
-              "slot_type",
-              "offset"
             ]
           }
         }
@@ -7991,9 +10915,13 @@
                 "type": "string",
                 "enum": [
                   "draft",
+                  "segmented",
+                  "needs_repair",
+                  "repaired",
                   "processing",
                   "ready",
                   "approved",
+                  "rig_ready",
                   "failed",
                   "archived"
                 ]
@@ -8226,9 +11154,13 @@
                 "type": "string",
                 "enum": [
                   "draft",
+                  "segmented",
+                  "needs_repair",
+                  "repaired",
                   "processing",
                   "ready",
                   "approved",
+                  "rig_ready",
                   "failed",
                   "archived"
                 ]
@@ -8432,9 +11364,13 @@
                 "type": "string",
                 "enum": [
                   "draft",
+                  "segmented",
+                  "needs_repair",
+                  "repaired",
                   "processing",
                   "ready",
                   "approved",
+                  "rig_ready",
                   "failed",
                   "archived"
                 ]
@@ -8690,9 +11626,13 @@
                 "type": "string",
                 "enum": [
                   "draft",
+                  "segmented",
+                  "needs_repair",
+                  "repaired",
                   "processing",
                   "ready",
                   "approved",
+                  "rig_ready",
                   "failed",
                   "archived"
                 ]
@@ -8927,9 +11867,13 @@
                 "type": "string",
                 "enum": [
                   "draft",
+                  "segmented",
+                  "needs_repair",
+                  "repaired",
                   "processing",
                   "ready",
                   "approved",
+                  "rig_ready",
                   "failed",
                   "archived"
                 ]
@@ -9152,9 +12096,13 @@
                 "type": "string",
                 "enum": [
                   "draft",
+                  "segmented",
+                  "needs_repair",
+                  "repaired",
                   "processing",
                   "ready",
                   "approved",
+                  "rig_ready",
                   "failed",
                   "archived"
                 ]
@@ -9421,9 +12369,13 @@
                 "type": "string",
                 "enum": [
                   "draft",
+                  "segmented",
+                  "needs_repair",
+                  "repaired",
                   "processing",
                   "ready",
                   "approved",
+                  "rig_ready",
                   "failed",
                   "archived"
                 ]
@@ -9835,9 +12787,13 @@
                 "type": "string",
                 "enum": [
                   "draft",
+                  "segmented",
+                  "needs_repair",
+                  "repaired",
                   "processing",
                   "ready",
                   "approved",
+                  "rig_ready",
                   "failed",
                   "archived"
                 ]
@@ -9955,9 +12911,13 @@
                 "type": "string",
                 "enum": [
                   "draft",
+                  "segmented",
+                  "needs_repair",
+                  "repaired",
                   "processing",
                   "ready",
                   "approved",
+                  "rig_ready",
                   "failed",
                   "archived"
                 ]

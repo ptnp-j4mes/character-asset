@@ -15,7 +15,7 @@ DIRECTIONS = ['S','SW','W','NW','N','NE','E','SE']
 BASE_VIEWS = ['S','SW','W','NW','N']
 ANIMATIONS = ['idle','walk','run','attack_1','hit','die','custom']
 SLOTS = ['head','weapon','shield','back','fx','custom']
-STATUSES = ['draft','processing','ready','approved','failed','archived']
+STATUSES = ['draft','segmented','needs_repair','repaired','processing','ready','approved','rig_ready','failed','archived']
 JOB_STATUSES = ['queued','running','completed','failed','canceled']
 
 
@@ -171,19 +171,43 @@ schemas['PartAsset'] = obj({
     'bounds': part_bounds, 'pivot': vec2, 'bone_hint': string(),
     'default_draw_layer': integer(),
     'occlusion': obj({'needs_completion':boolean(),'reason':{'oneOf':[string(),{'type':'null'}]}}, ['needs_completion','reason']),
+    'repair': obj({
+        'required':boolean(),
+        'state':enum(['not_required','needed','prepared','repaired']),
+        'reason':{'oneOf':[string(),{'type':'null'}]},
+        'hidden_area_reconstructed':boolean(),
+        'repaired_image_asset_id':{'oneOf':[string(),{'type':'null'}]},
+        'joint_padding':obj(additional=integer(minimum=0,maximum=256)),
+        'z_order':integer(minimum=-1000,maximum=1000),
+        'prompt':{'oneOf':[string(),{'type':'null'}]},
+        'prepared_at':{'oneOf':[string(format='date-time'),{'type':'null'}]},
+        'repaired_at':{'oneOf':[string(format='date-time'),{'type':'null'}]}
+    }, ['required','state','reason','hidden_area_reconstructed','repaired_image_asset_id','joint_padding','z_order','prompt','prepared_at','repaired_at']),
     'authoring': part_authoring,
     'created_at': string(format='date-time'), 'updated_at': string(format='date-time')
-}, ['part_id','character_id','direction','name','template','category','image_asset_id','mask_asset_id','status','approved','confidence','source','bounds','pivot','bone_hint','default_draw_layer','occlusion','authoring','created_at','updated_at'])
+}, ['part_id','character_id','direction','name','template','category','image_asset_id','mask_asset_id','status','approved','confidence','source','bounds','pivot','bone_hint','default_draw_layer','occlusion','repair','authoring','created_at','updated_at'])
 
 schemas['PartSegmentation'] = obj({
     'character_id': string(pattern='^char_[A-Za-z0-9_-]+$'),
     'direction': enum(BASE_VIEWS), 'template': string(),
     'mode': enum(['auto','hybrid']),
     'parts_created': integer(minimum=0), 'draft_count': integer(minimum=0),
+    'segmented_count': integer(minimum=0), 'needs_repair_count': integer(minimum=0),
     'approved_count': integer(minimum=0), 'review_required': boolean(),
     'warnings': arr(string()), 'parts': arr({'$ref':'#/$defs/PartAsset'}),
     'next_tool': string()
 }, ['character_id','direction','template','mode','parts_created','draft_count','approved_count','review_required','warnings','parts','next_tool'])
+
+schemas['PartOcclusionInspection'] = obj({
+    'part_id':string(pattern='^part_[A-Za-z0-9_-]+$'), 'direction':enum(DIRECTIONS), 'name':string(),
+    'needs_repair':boolean(), 'repair_state':enum(['not_required','needed','prepared','repaired']),
+    'reason':{'oneOf':[string(),{'type':'null'}]}, 'hidden_area_reconstructed':boolean(),
+    'joint_padding':obj(additional=integer(minimum=0,maximum=256)), 'z_order':integer(), 'rig_ready':boolean()
+}, ['part_id','direction','name','needs_repair','repair_state','reason','hidden_area_reconstructed','joint_padding','z_order','rig_ready'])
+schemas['PartRigReadiness'] = obj({
+    'part_id':string(pattern='^part_[A-Za-z0-9_-]+$'), 'name':string(), 'direction':enum(DIRECTIONS),
+    'rig_ready':boolean(), 'reasons':arr(string())
+}, ['part_id','name','direction','rig_ready','reasons'])
 
 schemas['Bone'] = obj({
     'name': string(), 'parent': {'type':['string','null']}, 'position': vec2,
@@ -292,6 +316,8 @@ standalone_map = {
     'image-handoff.schema.json':'ImageHandoff',
     'part-asset.schema.json':'PartAsset',
     'part-segmentation.schema.json':'PartSegmentation',
+    'part-occlusion-inspection.schema.json':'PartOcclusionInspection',
+    'part-rig-readiness.schema.json':'PartRigReadiness',
     'rig.schema.json':'Rig',
     'direction-profile.schema.json':'DirectionProfile',
     'animation-clip.schema.json':'AnimationClip',
@@ -423,19 +449,26 @@ add(tool('character.regenerate_view','Regenerate one view','Regenerate one chara
 # Parts
 add(tool('parts.auto_segment','Auto segment parts','Create deterministic review-only draft semantic masks and cutouts from one canonical base view.', obj({'character_id':id_char,'source_direction':enum(BASE_VIEWS),'part_template':string(default='biped_chibi_parts_v1'),'mode':enum(['auto','hybrid'],default='hybrid')}, ['character_id','source_direction','part_template']), obj({'segmentation':{'$ref':'#/$defs/PartSegmentation'}}, ['segmentation'])))
 add(tool('parts.list','List parts','List segmented parts for a character and optional direction.', obj({'character_id':id_char,'direction':enum(DIRECTIONS),'approved_only':boolean(default=False)}, ['character_id']), obj({'parts':arr({'$ref':'#/$defs/PartAsset'})}, ['parts']), read=True, idempotent=True))
-add(tool('parts.get','Get part','Read one segmented part and its local artifact endpoints.', obj({'part_id':string(pattern='^part_[A-Za-z0-9_-]+$')}, ['part_id']), obj({'part':{'$ref':'#/$defs/PartAsset'},'cutout_url':string(),'mask_url':string()}, ['part','cutout_url','mask_url']), read=True, idempotent=True))
+add(tool('parts.get','Get part','Read one segmented part and its local artifact endpoints.', obj({'part_id':string(pattern='^part_[A-Za-z0-9_-]+$')}, ['part_id']), obj({'part':{'$ref':'#/$defs/PartAsset'},'cutout_url':string(),'mask_url':string(),'repaired_url':string()}, ['part','cutout_url','mask_url','repaired_url']), read=True, idempotent=True))
 mask_data_url = string(pattern='^data:image/png;base64,')
 add(tool('parts.update_mask','Update part mask','Replace one part mask PNG, regenerate its cutout, and reset approval.', obj({'part_id':string(pattern='^part_[A-Za-z0-9_-]+$'),'mask_data_url':mask_data_url}, ['part_id','mask_data_url']), obj({'part':{'$ref':'#/$defs/PartAsset'}}, ['part']), idempotent=True))
 add(tool('parts.approve','Approve part','Mark a reviewed part as approved for rig binding.', obj({'part_id':string(pattern='^part_[A-Za-z0-9_-]+$'),'approved':boolean(default=True)}, ['part_id']), obj({'part':{'$ref':'#/$defs/PartAsset'}}, ['part']), idempotent=True))
 add(tool('parts.delete','Delete part','Delete one segmented part.', obj({'part_id':string()}, ['part_id']), ack_out, destructive=True, idempotent=True))
 add(tool('parts.create_manual','Create manual part','Create or explicitly replace a part using a PNG mask against the canonical base view.', obj({'character_id':id_char,'direction':enum(BASE_VIEWS),'name':string(),'mask_data_url':mask_data_url,'category':enum(['body_part','hair','equipment','shadow','fx','custom']),'pivot':vec2,'bone_hint':string(),'replace':boolean(default=False)}, ['character_id','direction','name','mask_data_url']), obj({'part':{'$ref':'#/$defs/PartAsset'}}, ['part'])))
+add(tool('parts.inspect_occlusion','Inspect part occlusion','Inspect extracted parts for hidden-area reconstruction, joint overlap and current rig readiness.', obj({'character_id':id_char,'direction':enum(DIRECTIONS)}, ['character_id']), obj({'character_id':id_char,'direction':enum(DIRECTIONS),'parts_checked':integer(minimum=0),'needs_repair_count':integer(minimum=0),'repaired_count':integer(minimum=0),'inspections':arr({'$ref':'#/$defs/PartOcclusionInspection'}),'next_tool':string()}, ['character_id','parts_checked','needs_repair_count','repaired_count','inspections','next_tool']), read=True, idempotent=True))
+add(tool('parts.prepare_repair','Prepare part repair','Build and persist a deterministic repair prompt for one isolated part without calling an image provider.', obj({'part_id':string(pattern='^part_[A-Za-z0-9_-]+$')}, ['part_id']), obj({'part':{'$ref':'#/$defs/PartAsset'},'prompt':string()}, ['part','prompt']), idempotent=True))
+add(tool('parts.replace_repaired_image','Replace repaired part image','Persist a full-canvas transparent repaired PNG for a part and mark hidden-area reconstruction complete.', obj({'part_id':string(pattern='^part_[A-Za-z0-9_-]+$'),'image_data_url':mask_data_url}, ['part_id','image_data_url']), obj({'part':{'$ref':'#/$defs/PartAsset'}}, ['part']), idempotent=True))
+add(tool('parts.set_joint_padding','Set joint padding','Set per-joint overlap padding in pixels for a part.', obj({'part_id':string(pattern='^part_[A-Za-z0-9_-]+$'),'joint_padding':obj(additional=integer(minimum=0,maximum=256))}, ['part_id','joint_padding']), obj({'part':{'$ref':'#/$defs/PartAsset'}}, ['part']), idempotent=True))
+add(tool('parts.set_z_order','Set part z-order','Set the per-direction draw-order integer for a part.', obj({'part_id':string(pattern='^part_[A-Za-z0-9_-]+$'),'z_order':integer(minimum=-1000,maximum=1000)}, ['part_id','z_order']), obj({'part':{'$ref':'#/$defs/PartAsset'}}, ['part']), idempotent=True))
+add(tool('parts.mark_repaired','Mark part repaired','Confirm a persisted repaired.png as the completed hidden-area reconstruction for a part.', obj({'part_id':string(pattern='^part_[A-Za-z0-9_-]+$')}, ['part_id']), obj({'part':{'$ref':'#/$defs/PartAsset'}}, ['part']), idempotent=True))
+add(tool('parts.validate_rig_readiness','Validate part rig readiness','Validate approval, hidden-area repair, joint padding and z-order before rig creation.', obj({'character_id':id_char,'direction':enum(DIRECTIONS)}, ['character_id']), obj({'valid':boolean(),'character_id':id_char,'direction':enum(DIRECTIONS),'parts_checked':integer(minimum=0),'rig_ready_count':integer(minimum=0),'warnings':arr(string()),'errors':arr(string()),'parts':arr({'$ref':'#/$defs/PartRigReadiness'}),'next_tool':string()}, ['valid','character_id','parts_checked','rig_ready_count','warnings','errors','parts','next_tool']), read=True, idempotent=True))
 
 # Rig
-add(tool('rig.create','Create rig','Create a character rig from a preset and optionally auto-bind approved parts.', obj({'character_id':id_char,'rig_preset':string(),'auto_bind':boolean(default=True)}, ['character_id','rig_preset']), obj({'rig':{'$ref':'#/$defs/Rig'}}, ['rig'])))
+add(tool('rig.create','Create rig','Create a character rig from a preset after all extracted parts are approved and repair-complete; optionally auto-bind rig-ready parts.', obj({'character_id':id_char,'rig_preset':string(),'auto_bind':boolean(default=True)}, ['character_id','rig_preset']), obj({'rig':{'$ref':'#/$defs/Rig'}}, ['rig'])))
 add(tool('rig.get','Get rig','Read the current character rig.', obj({'character_id':id_char}, ['character_id']), obj({'rig':{'$ref':'#/$defs/Rig'}}, ['rig']), read=True, idempotent=True))
 add(tool('rig.list_bones','List bones','List bones in a rig.', obj({'rig_id':id_rig}, ['rig_id']), obj({'bones':arr({'$ref':'#/$defs/Bone'})}, ['bones']), read=True, idempotent=True))
 add(tool('rig.update_bone','Update bone','Patch one bone in the rig.', obj({'rig_id':id_rig,'bone_name':string(),'patch':obj({'parent':{'type':['string','null']},'position':vec2,'length':number(minimum=0),'rotation':number(),'rotation_limits':obj({'min':number(),'max':number()}, additional=False)}, additional=False)}, ['rig_id','bone_name','patch']), obj({'rig':{'$ref':'#/$defs/Rig'}}, ['rig']), idempotent=True))
-add(tool('rig.auto_bind_parts','Auto bind parts','Bind approved character parts to matching preset bones; draft parts are skipped and reported.', obj({'character_id':id_char,'rig_id':id_rig,'overwrite_existing':boolean(default=False)}, [], anyOf=[{'required':['character_id']},{'required':['rig_id']}]), obj({'rig':{'$ref':'#/$defs/Rig'},'bound_part_ids':arr(string()),'unbound_part_ids':arr(string()),'skipped_part_ids':arr(string()),'unmatched_bones':arr(string())}, ['rig','bound_part_ids','unbound_part_ids','skipped_part_ids','unmatched_bones']), idempotent=True))
+add(tool('rig.auto_bind_parts','Auto bind parts','Bind approved, repair-complete character parts to matching preset bones; incomplete parts are skipped and reported.', obj({'character_id':id_char,'rig_id':id_rig,'overwrite_existing':boolean(default=False)}, [], anyOf=[{'required':['character_id']},{'required':['rig_id']}]), obj({'rig':{'$ref':'#/$defs/Rig'},'bound_part_ids':arr(string()),'unbound_part_ids':arr(string()),'skipped_part_ids':arr(string()),'unmatched_bones':arr(string())}, ['rig','bound_part_ids','unbound_part_ids','skipped_part_ids','unmatched_bones']), idempotent=True))
 add(tool('rig.update_binding','Update binding','Set or replace the bone binding for a part.', obj({'rig_id':id_rig,'part_id':string(),'bone_name':string(),'pivot':vec2,'offset':transform2d,'weight_mode':enum(['rigid','weighted'],default='rigid')}, ['rig_id','part_id','bone_name']), obj({'rig':{'$ref':'#/$defs/Rig'}}, ['rig']), idempotent=True))
 add(tool('rig.add_socket','Add socket','Add an equipment or effect socket to a bone.', obj({'rig_id':id_rig,'socket_name':string(),'bone_name':string(),'offset':transform2d,'slot_type':enum(SLOTS)}, ['rig_id','socket_name','bone_name','slot_type']), obj({'rig':{'$ref':'#/$defs/Rig'}}, ['rig'])))
 add(tool('rig.update_socket','Update socket','Patch an existing rig socket.', obj({'rig_id':id_rig,'socket_name':string(),'patch':obj({'bone_name':string(),'offset':transform2d,'slot_type':enum(SLOTS)}, additional=False)}, ['rig_id','socket_name','patch']), obj({'rig':{'$ref':'#/$defs/Rig'}}, ['rig']), idempotent=True))
@@ -565,13 +598,21 @@ rest = [
 ('/characters/{character_id}/base-views/{direction}:regenerate','post','character.regenerate_view','Regenerate one view','Generation',obj({'seed':integer(),'reason':string()},[]),obj({'job':ref('Job')},['job']),['character_id','direction']),
 ('/characters/{character_id}/parts:auto-segment','post','parts.auto_segment','Auto segment parts','Parts',obj({'source_direction':enum(BASE_VIEWS),'part_template':string(default='biped_chibi_parts_v1'),'mode':enum(['auto','hybrid'])},['source_direction','part_template']),obj({'segmentation':ref('PartSegmentation')},['segmentation']),['character_id']),
 ('/characters/{character_id}/parts','get','parts.list','List parts','Parts',None,obj({'parts':arr(ref('PartAsset'))},['parts']),['character_id']),
-('/characters/{character_id}/parts/{part_id}','get','parts.get','Get part','Parts',None,obj({'part':ref('PartAsset'),'cutout_url':string(),'mask_url':string()},['part','cutout_url','mask_url']),['character_id','part_id']),
+('/characters/{character_id}/parts/{part_id}','get','parts.get','Get part','Parts',None,obj({'part':ref('PartAsset'),'cutout_url':string(),'mask_url':string(),'repaired_url':string()},['part','cutout_url','mask_url','repaired_url']),['character_id','part_id']),
 ('/characters/{character_id}/parts/{part_id}/mask','put','parts.update_mask','Update part mask','Parts',obj({'mask_data_url':string(pattern='^data:image/png;base64,')},['mask_data_url']),obj({'part':ref('PartAsset')},['part']),['character_id','part_id']),
+('/characters/{character_id}/parts:inspect-occlusion','post','parts.inspect_occlusion','Inspect part occlusion','Parts',obj({'direction':enum(DIRECTIONS)},[]),obj({'character_id':id_char,'direction':enum(DIRECTIONS),'parts_checked':integer(minimum=0),'needs_repair_count':integer(minimum=0),'repaired_count':integer(minimum=0),'inspections':arr(ref('PartOcclusionInspection')),'next_tool':string()},['character_id','parts_checked','needs_repair_count','repaired_count','inspections','next_tool']),['character_id']),
+('/characters/{character_id}/parts/{part_id}:prepare-repair','post','parts.prepare_repair','Prepare part repair','Parts',obj({},[]),obj({'part':ref('PartAsset'),'prompt':string()},['part','prompt']),['character_id','part_id']),
+('/characters/{character_id}/parts/{part_id}/repaired','put','parts.replace_repaired_image','Replace repaired part image','Parts',obj({'image_data_url':string(pattern='^data:image/png;base64,')},['image_data_url']),obj({'part':ref('PartAsset')},['part']),['character_id','part_id']),
+('/characters/{character_id}/parts/{part_id}/joint-padding','put','parts.set_joint_padding','Set joint padding','Parts',obj({'joint_padding':obj(additional=integer(minimum=0,maximum=256))},['joint_padding']),obj({'part':ref('PartAsset')},['part']),['character_id','part_id']),
+('/characters/{character_id}/parts/{part_id}/z-order','put','parts.set_z_order','Set part z-order','Parts',obj({'z_order':integer(minimum=-1000,maximum=1000)},['z_order']),obj({'part':ref('PartAsset')},['part']),['character_id','part_id']),
+('/characters/{character_id}/parts/{part_id}:mark-repaired','post','parts.mark_repaired','Mark part repaired','Parts',obj({},[]),obj({'part':ref('PartAsset')},['part']),['character_id','part_id']),
+('/characters/{character_id}/parts:validate-rig-readiness','post','parts.validate_rig_readiness','Validate part rig readiness','Parts',obj({'direction':enum(DIRECTIONS)},[]),obj({'valid':boolean(),'character_id':id_char,'direction':enum(DIRECTIONS),'parts_checked':integer(minimum=0),'rig_ready_count':integer(minimum=0),'warnings':arr(string()),'errors':arr(string()),'parts':arr(ref('PartRigReadiness')),'next_tool':string()},['valid','character_id','parts_checked','rig_ready_count','warnings','errors','parts','next_tool']),['character_id']),
 ('/characters/{character_id}/parts/{part_id}:approve','post','parts.approve','Approve part','Parts',obj({'approved':boolean(default=True)},[]),obj({'part':ref('PartAsset')},['part']),['character_id','part_id']),
 ('/parts/{part_id}','delete','parts.delete','Delete part','Parts',None,ack_out,['part_id']),
 ('/characters/{character_id}/parts:manual','post','parts.create_manual','Create manual part','Parts',obj({'direction':enum(BASE_VIEWS),'name':string(),'mask_data_url':string(pattern='^data:image/png;base64,'),'category':enum(['body_part','hair','equipment','shadow','fx','custom']),'pivot':vec2,'bone_hint':string(),'replace':boolean(default=False)},['direction','name','mask_data_url']),obj({'part':ref('PartAsset')},['part']),['character_id']),
 ('/characters/{character_id}/parts/{part_id}/cutout','get','parts.get_cutout','Get part cutout','Parts',None,{'type':'string','contentMediaType':'image/png'},['character_id','part_id']),
 ('/characters/{character_id}/parts/{part_id}/mask','get','parts.get_mask','Get part mask','Parts',None,{'type':'string','contentMediaType':'image/png'},['character_id','part_id']),
+('/characters/{character_id}/parts/{part_id}/repaired','get','parts.get_repaired','Get repaired part','Parts',None,{'type':'string','contentMediaType':'image/png'},['character_id','part_id']),
 ('/characters/{character_id}/rig','post','rig.create','Create rig','Rig',obj({'rig_preset':string(),'auto_bind':boolean()},['rig_preset']),obj({'rig':ref('Rig')},['rig']),['character_id']),
 ('/characters/{character_id}/rig','get','rig.get','Get rig','Rig',None,obj({'rig':ref('Rig')},['rig']),['character_id']),
 ('/rigs/{rig_id}/bones','get','rig.list_bones','List bones','Rig',None,obj({'bones':arr(ref('Bone'))},['bones']),['rig_id']),
@@ -684,7 +725,8 @@ manifest={
         'implementedTools':[
             'project.create','character.create_spec','character.get_spec',
             'character.prepare_base_views','character.begin_image_handoff','character.get_image_handoff','character.ingest_base_view','character.get_base_views','character.validate_base_views',
-            'parts.auto_segment','parts.list','parts.get','parts.update_mask','parts.create_manual','parts.approve',
+            'parts.auto_segment','parts.list','parts.get','parts.update_mask','parts.create_manual',
+            'parts.inspect_occlusion','parts.prepare_repair','parts.replace_repaired_image','parts.set_joint_padding','parts.set_z_order','parts.mark_repaired','parts.validate_rig_readiness','parts.approve',
             'rig.create','rig.get','rig.auto_bind_parts','rig.validate'
         ]
     }
@@ -708,7 +750,9 @@ Executable tools in {VERSION}:
 - `character.get_base_views`
 - `character.validate_base_views`
 - `parts.auto_segment`
-- `parts.list` / `parts.get` / `parts.update_mask` / `parts.create_manual` / `parts.approve`
+- `parts.list` / `parts.get` / `parts.update_mask` / `parts.create_manual`
+- `parts.inspect_occlusion` / `parts.prepare_repair` / `parts.replace_repaired_image`
+- `parts.set_joint_padding` / `parts.set_z_order` / `parts.mark_repaired` / `parts.validate_rig_readiness` / `parts.approve`
 - `rig.create` / `rig.get` / `rig.auto_bind_parts` / `rig.validate`
 
 Run with `npm test` and `npm start`.
@@ -758,6 +802,13 @@ PNG files are stored at `data/characters/<character_id>/base_views/<direction>.p
 - `GET /characters/{{character_id}}/parts/{{part_id}}`
 - `PUT /characters/{{character_id}}/parts/{{part_id}}/mask`
 - `POST /characters/{{character_id}}/parts:manual`
+- `POST /characters/{{character_id}}/parts:inspect-occlusion`
+- `POST /characters/{{character_id}}/parts/{{part_id}}:prepare-repair`
+- `PUT /characters/{{character_id}}/parts/{{part_id}}/repaired`
+- `PUT /characters/{{character_id}}/parts/{{part_id}}/joint-padding`
+- `PUT /characters/{{character_id}}/parts/{{part_id}}/z-order`
+- `POST /characters/{{character_id}}/parts/{{part_id}}:mark-repaired`
+- `POST /characters/{{character_id}}/parts:validate-rig-readiness`
 - `POST /characters/{{character_id}}/parts/{{part_id}}:approve`
 - `GET /characters/{{character_id}}/parts/{{part_id}}/cutout`
 - `GET /characters/{{character_id}}/parts/{{part_id}}/mask`
@@ -773,7 +824,7 @@ PNG files are stored at `data/characters/<character_id>/base_views/<direction>.p
 - MCP protocol target: 2026-07-28
 - MCP tool input/output schemas: JSON Schema Draft 2020-12
 
-After base-view validation, the V1 workflow continues through `parts.auto_segment`, human mask review/approval, `rig.create`, `rig.auto_bind_parts`, and `rig.validate`. Low-resolution sources remain reviewable but emit an authoring-resolution warning.
+After base-view validation, the V1 workflow continues through `parts.auto_segment`, semantic review, Phase 2.5 occlusion repair and joint-overlap validation, approval, `rig.create`, `rig.auto_bind_parts`, and `rig.validate`. Low-resolution sources remain reviewable but emit an authoring-resolution warning.
 '''
 (ROOT/'README.md').write_text(readme)
 

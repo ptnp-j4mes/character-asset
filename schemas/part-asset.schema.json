@@ -52,9 +52,13 @@
       "type": "string",
       "enum": [
         "draft",
+        "segmented",
+        "needs_repair",
+        "repaired",
         "processing",
         "ready",
         "approved",
+        "rig_ready",
         "failed",
         "archived"
       ]
@@ -168,6 +172,105 @@
         "reason"
       ]
     },
+    "repair": {
+      "type": "object",
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "not_required",
+            "needed",
+            "prepared",
+            "repaired"
+          ]
+        },
+        "reason": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "hidden_area_reconstructed": {
+          "type": "boolean"
+        },
+        "repaired_image_asset_id": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "joint_padding": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 256
+          }
+        },
+        "z_order": {
+          "type": "integer",
+          "minimum": -1000,
+          "maximum": 1000
+        },
+        "prompt": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "prepared_at": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "repaired_at": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "required",
+        "state",
+        "reason",
+        "hidden_area_reconstructed",
+        "repaired_image_asset_id",
+        "joint_padding",
+        "z_order",
+        "prompt",
+        "prepared_at",
+        "repaired_at"
+      ]
+    },
     "authoring": {
       "type": "object",
       "properties": {
@@ -234,6 +337,7 @@
     "bone_hint",
     "default_draw_layer",
     "occlusion",
+    "repair",
     "authoring",
     "created_at",
     "updated_at"
@@ -448,9 +552,13 @@
           "type": "string",
           "enum": [
             "draft",
+            "segmented",
+            "needs_repair",
+            "repaired",
             "processing",
             "ready",
             "approved",
+            "rig_ready",
             "failed",
             "archived"
           ],
@@ -529,9 +637,13 @@
           "type": "string",
           "enum": [
             "draft",
+            "segmented",
+            "needs_repair",
+            "repaired",
             "processing",
             "ready",
             "approved",
+            "rig_ready",
             "failed",
             "archived"
           ]
@@ -874,6 +986,14 @@
           "type": "integer",
           "minimum": 0
         },
+        "segmented_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "needs_repair_count": {
+          "type": "integer",
+          "minimum": 0
+        },
         "approved_count": {
           "type": "integer",
           "minimum": 0
@@ -910,6 +1030,126 @@
         "warnings",
         "parts",
         "next_tool"
+      ]
+    },
+    "PartOcclusionInspection": {
+      "type": "object",
+      "properties": {
+        "part_id": {
+          "type": "string",
+          "pattern": "^part_[A-Za-z0-9_-]+$"
+        },
+        "direction": {
+          "type": "string",
+          "enum": [
+            "S",
+            "SW",
+            "W",
+            "NW",
+            "N",
+            "NE",
+            "E",
+            "SE"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "needs_repair": {
+          "type": "boolean"
+        },
+        "repair_state": {
+          "type": "string",
+          "enum": [
+            "not_required",
+            "needed",
+            "prepared",
+            "repaired"
+          ]
+        },
+        "reason": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "hidden_area_reconstructed": {
+          "type": "boolean"
+        },
+        "joint_padding": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 256
+          }
+        },
+        "z_order": {
+          "type": "integer"
+        },
+        "rig_ready": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "part_id",
+        "direction",
+        "name",
+        "needs_repair",
+        "repair_state",
+        "reason",
+        "hidden_area_reconstructed",
+        "joint_padding",
+        "z_order",
+        "rig_ready"
+      ]
+    },
+    "PartRigReadiness": {
+      "type": "object",
+      "properties": {
+        "part_id": {
+          "type": "string",
+          "pattern": "^part_[A-Za-z0-9_-]+$"
+        },
+        "name": {
+          "type": "string"
+        },
+        "direction": {
+          "type": "string",
+          "enum": [
+            "S",
+            "SW",
+            "W",
+            "NW",
+            "N",
+            "NE",
+            "E",
+            "SE"
+          ]
+        },
+        "rig_ready": {
+          "type": "boolean"
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "part_id",
+        "name",
+        "direction",
+        "rig_ready",
+        "reasons"
       ]
     },
     "Bone": {
@@ -1126,9 +1366,13 @@
           "type": "string",
           "enum": [
             "draft",
+            "segmented",
+            "needs_repair",
+            "repaired",
             "processing",
             "ready",
             "approved",
+            "rig_ready",
             "failed",
             "archived"
           ]
@@ -1432,9 +1676,13 @@
           "type": "string",
           "enum": [
             "draft",
+            "segmented",
+            "needs_repair",
+            "repaired",
             "processing",
             "ready",
             "approved",
+            "rig_ready",
             "failed",
             "archived"
           ]
@@ -1496,9 +1744,13 @@
           "type": "string",
           "enum": [
             "draft",
+            "segmented",
+            "needs_repair",
+            "repaired",
             "processing",
             "ready",
             "approved",
+            "rig_ready",
             "failed",
             "archived"
           ]

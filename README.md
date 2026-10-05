@@ -15,7 +15,9 @@ Executable tools in 0.3.0:
 - `character.get_base_views`
 - `character.validate_base_views`
 - `parts.auto_segment`
-- `parts.list` / `parts.get` / `parts.update_mask` / `parts.create_manual` / `parts.approve`
+- `parts.list` / `parts.get` / `parts.update_mask` / `parts.create_manual`
+- `parts.inspect_occlusion` / `parts.prepare_repair` / `parts.replace_repaired_image`
+- `parts.set_joint_padding` / `parts.set_z_order` / `parts.mark_repaired` / `parts.validate_rig_readiness` / `parts.approve`
 - `rig.create` / `rig.get` / `rig.auto_bind_parts` / `rig.validate`
 
 Run with `npm test` and `npm start`.
@@ -65,6 +67,13 @@ PNG files are stored at `data/characters/<character_id>/base_views/<direction>.p
 - `GET /characters/{character_id}/parts/{part_id}`
 - `PUT /characters/{character_id}/parts/{part_id}/mask`
 - `POST /characters/{character_id}/parts:manual`
+- `POST /characters/{character_id}/parts:inspect-occlusion`
+- `POST /characters/{character_id}/parts/{part_id}:prepare-repair`
+- `PUT /characters/{character_id}/parts/{part_id}/repaired`
+- `PUT /characters/{character_id}/parts/{part_id}/joint-padding`
+- `PUT /characters/{character_id}/parts/{part_id}/z-order`
+- `POST /characters/{character_id}/parts/{part_id}:mark-repaired`
+- `POST /characters/{character_id}/parts:validate-rig-readiness`
 - `POST /characters/{character_id}/parts/{part_id}:approve`
 - `GET /characters/{character_id}/parts/{part_id}/cutout`
 - `GET /characters/{character_id}/parts/{part_id}/mask`
@@ -80,4 +89,4 @@ PNG files are stored at `data/characters/<character_id>/base_views/<direction>.p
 - MCP protocol target: 2026-07-28
 - MCP tool input/output schemas: JSON Schema Draft 2020-12
 
-After base-view validation, the V1 workflow continues through `parts.auto_segment`, human mask review/approval, `rig.create`, `rig.auto_bind_parts`, and `rig.validate`. Low-resolution sources remain reviewable but emit an authoring-resolution warning.
+After base-view validation, the V1 workflow continues through `parts.auto_segment`, semantic review, Phase 2.5 occlusion repair and joint-overlap validation, approval, `rig.create`, `rig.auto_bind_parts`, and `rig.validate`. Low-resolution sources remain reviewable but emit an authoring-resolution warning.

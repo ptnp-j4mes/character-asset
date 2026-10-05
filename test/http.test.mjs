@@ -147,6 +147,13 @@ test('MCP endpoint serves discover, tools/list, and tools/call over stateless HT
     'parts.get',
     'parts.update_mask',
     'parts.create_manual',
+    'parts.inspect_occlusion',
+    'parts.prepare_repair',
+    'parts.replace_repaired_image',
+    'parts.set_joint_padding',
+    'parts.set_z_order',
+    'parts.mark_repaired',
+    'parts.validate_rig_readiness',
     'parts.approve',
     'rig.create',
     'rig.get',
@@ -248,5 +255,5 @@ test('REST supports prepare -> ingest -> get -> validate for ChatGPT Web base vi
   const parts = await json(await fetch(`${base}/characters/char_http_base_001/parts?direction=S`));
   assert.equal(parts.status, 200);
   assert.equal(parts.body.parts.length, 17);
-  assert.ok(parts.body.parts.every((part) => part.status === 'draft'));
+  assert.ok(parts.body.parts.every((part) => ['segmented', 'needs_repair'].includes(part.status)));
 });

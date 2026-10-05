@@ -8,9 +8,9 @@
     "jsonSchema": "2020-12"
   },
   "counts": {
-    "mcpTools": 65,
-    "openapiPaths": 59,
-    "sharedSchemas": 15
+    "mcpTools": 72,
+    "openapiPaths": 66,
+    "sharedSchemas": 17
   },
   "files": {
     "openapi": "openapi/character-asset.openapi.json",
@@ -28,6 +28,8 @@
       "image-handoff.schema.json",
       "job.schema.json",
       "part-asset.schema.json",
+      "part-occlusion-inspection.schema.json",
+      "part-rig-readiness.schema.json",
       "part-segmentation.schema.json",
       "project.schema.json",
       "qc-result.schema.json",
@@ -56,6 +58,13 @@
       "parts.get",
       "parts.update_mask",
       "parts.create_manual",
+      "parts.inspect_occlusion",
+      "parts.prepare_repair",
+      "parts.replace_repaired_image",
+      "parts.set_joint_padding",
+      "parts.set_z_order",
+      "parts.mark_repaired",
+      "parts.validate_rig_readiness",
       "parts.approve",
       "rig.create",
       "rig.get",

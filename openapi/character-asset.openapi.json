@@ -2333,13 +2333,17 @@
                     },
                     "mask_url": {
                       "type": "string"
+                    },
+                    "repaired_url": {
+                      "type": "string"
                     }
                   },
                   "additionalProperties": false,
                   "required": [
                     "part",
                     "cutout_url",
-                    "mask_url"
+                    "mask_url",
+                    "repaired_url"
                   ]
                 }
               }
@@ -2527,6 +2531,923 @@
                 "schema": {
                   "type": "string",
                   "contentMediaType": "image/png"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/characters/{character_id}/parts:inspect-occlusion": {
+      "post": {
+        "operationId": "parts.inspect_occlusion",
+        "summary": "Inspect part occlusion",
+        "tags": [
+          "Parts"
+        ],
+        "parameters": [
+          {
+            "name": "character_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "direction": {
+                    "type": "string",
+                    "enum": [
+                      "S",
+                      "SW",
+                      "W",
+                      "NW",
+                      "N",
+                      "NE",
+                      "E",
+                      "SE"
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "character_id": {
+                      "type": "string",
+                      "pattern": "^char_[A-Za-z0-9_-]+$"
+                    },
+                    "direction": {
+                      "type": "string",
+                      "enum": [
+                        "S",
+                        "SW",
+                        "W",
+                        "NW",
+                        "N",
+                        "NE",
+                        "E",
+                        "SE"
+                      ]
+                    },
+                    "parts_checked": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "needs_repair_count": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "repaired_count": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "inspections": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PartOcclusionInspection"
+                      }
+                    },
+                    "next_tool": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "character_id",
+                    "parts_checked",
+                    "needs_repair_count",
+                    "repaired_count",
+                    "inspections",
+                    "next_tool"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/characters/{character_id}/parts/{part_id}:prepare-repair": {
+      "post": {
+        "operationId": "parts.prepare_repair",
+        "summary": "Prepare part repair",
+        "tags": [
+          "Parts"
+        ],
+        "parameters": [
+          {
+            "name": "character_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "part_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "part": {
+                      "$ref": "#/components/schemas/PartAsset"
+                    },
+                    "prompt": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "part",
+                    "prompt"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/characters/{character_id}/parts/{part_id}/repaired": {
+      "put": {
+        "operationId": "parts.replace_repaired_image",
+        "summary": "Replace repaired part image",
+        "tags": [
+          "Parts"
+        ],
+        "parameters": [
+          {
+            "name": "character_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "part_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "image_data_url": {
+                    "type": "string",
+                    "pattern": "^data:image/png;base64,"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "image_data_url"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "part": {
+                      "$ref": "#/components/schemas/PartAsset"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "part"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "parts.get_repaired",
+        "summary": "Get repaired part",
+        "tags": [
+          "Parts"
+        ],
+        "parameters": [
+          {
+            "name": "character_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "part_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "contentMediaType": "image/png"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/characters/{character_id}/parts/{part_id}/joint-padding": {
+      "put": {
+        "operationId": "parts.set_joint_padding",
+        "summary": "Set joint padding",
+        "tags": [
+          "Parts"
+        ],
+        "parameters": [
+          {
+            "name": "character_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "part_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "joint_padding": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 256
+                    }
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "joint_padding"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "part": {
+                      "$ref": "#/components/schemas/PartAsset"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "part"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/characters/{character_id}/parts/{part_id}/z-order": {
+      "put": {
+        "operationId": "parts.set_z_order",
+        "summary": "Set part z-order",
+        "tags": [
+          "Parts"
+        ],
+        "parameters": [
+          {
+            "name": "character_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "part_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "z_order": {
+                    "type": "integer",
+                    "minimum": -1000,
+                    "maximum": 1000
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "z_order"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "part": {
+                      "$ref": "#/components/schemas/PartAsset"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "part"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/characters/{character_id}/parts/{part_id}:mark-repaired": {
+      "post": {
+        "operationId": "parts.mark_repaired",
+        "summary": "Mark part repaired",
+        "tags": [
+          "Parts"
+        ],
+        "parameters": [
+          {
+            "name": "character_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "part_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "part": {
+                      "$ref": "#/components/schemas/PartAsset"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "part"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/characters/{character_id}/parts:validate-rig-readiness": {
+      "post": {
+        "operationId": "parts.validate_rig_readiness",
+        "summary": "Validate part rig readiness",
+        "tags": [
+          "Parts"
+        ],
+        "parameters": [
+          {
+            "name": "character_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "direction": {
+                    "type": "string",
+                    "enum": [
+                      "S",
+                      "SW",
+                      "W",
+                      "NW",
+                      "N",
+                      "NE",
+                      "E",
+                      "SE"
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "valid": {
+                      "type": "boolean"
+                    },
+                    "character_id": {
+                      "type": "string",
+                      "pattern": "^char_[A-Za-z0-9_-]+$"
+                    },
+                    "direction": {
+                      "type": "string",
+                      "enum": [
+                        "S",
+                        "SW",
+                        "W",
+                        "NW",
+                        "N",
+                        "NE",
+                        "E",
+                        "SE"
+                      ]
+                    },
+                    "parts_checked": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "rig_ready_count": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "parts": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PartRigReadiness"
+                      }
+                    },
+                    "next_tool": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "valid",
+                    "character_id",
+                    "parts_checked",
+                    "rig_ready_count",
+                    "warnings",
+                    "errors",
+                    "parts",
+                    "next_tool"
+                  ]
                 }
               }
             }
@@ -7507,9 +8428,13 @@
             "type": "string",
             "enum": [
               "draft",
+              "segmented",
+              "needs_repair",
+              "repaired",
               "processing",
               "ready",
               "approved",
+              "rig_ready",
               "failed",
               "archived"
             ],
@@ -7588,9 +8513,13 @@
             "type": "string",
             "enum": [
               "draft",
+              "segmented",
+              "needs_repair",
+              "repaired",
               "processing",
               "ready",
               "approved",
+              "rig_ready",
               "failed",
               "archived"
             ]
@@ -7949,9 +8878,13 @@
             "type": "string",
             "enum": [
               "draft",
+              "segmented",
+              "needs_repair",
+              "repaired",
               "processing",
               "ready",
               "approved",
+              "rig_ready",
               "failed",
               "archived"
             ]
@@ -8065,6 +8998,105 @@
               "reason"
             ]
           },
+          "repair": {
+            "type": "object",
+            "properties": {
+              "required": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "not_required",
+                  "needed",
+                  "prepared",
+                  "repaired"
+                ]
+              },
+              "reason": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "hidden_area_reconstructed": {
+                "type": "boolean"
+              },
+              "repaired_image_asset_id": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "joint_padding": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 256
+                }
+              },
+              "z_order": {
+                "type": "integer",
+                "minimum": -1000,
+                "maximum": 1000
+              },
+              "prompt": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "prepared_at": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "repaired_at": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "required",
+              "state",
+              "reason",
+              "hidden_area_reconstructed",
+              "repaired_image_asset_id",
+              "joint_padding",
+              "z_order",
+              "prompt",
+              "prepared_at",
+              "repaired_at"
+            ]
+          },
           "authoring": {
             "type": "object",
             "properties": {
@@ -8131,6 +9163,7 @@
           "bone_hint",
           "default_draw_layer",
           "occlusion",
+          "repair",
           "authoring",
           "created_at",
           "updated_at"
@@ -8171,6 +9204,14 @@
             "type": "integer",
             "minimum": 0
           },
+          "segmented_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "needs_repair_count": {
+            "type": "integer",
+            "minimum": 0
+          },
           "approved_count": {
             "type": "integer",
             "minimum": 0
@@ -8207,6 +9248,126 @@
           "warnings",
           "parts",
           "next_tool"
+        ]
+      },
+      "PartOcclusionInspection": {
+        "type": "object",
+        "properties": {
+          "part_id": {
+            "type": "string",
+            "pattern": "^part_[A-Za-z0-9_-]+$"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "S",
+              "SW",
+              "W",
+              "NW",
+              "N",
+              "NE",
+              "E",
+              "SE"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "needs_repair": {
+            "type": "boolean"
+          },
+          "repair_state": {
+            "type": "string",
+            "enum": [
+              "not_required",
+              "needed",
+              "prepared",
+              "repaired"
+            ]
+          },
+          "reason": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hidden_area_reconstructed": {
+            "type": "boolean"
+          },
+          "joint_padding": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 256
+            }
+          },
+          "z_order": {
+            "type": "integer"
+          },
+          "rig_ready": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "part_id",
+          "direction",
+          "name",
+          "needs_repair",
+          "repair_state",
+          "reason",
+          "hidden_area_reconstructed",
+          "joint_padding",
+          "z_order",
+          "rig_ready"
+        ]
+      },
+      "PartRigReadiness": {
+        "type": "object",
+        "properties": {
+          "part_id": {
+            "type": "string",
+            "pattern": "^part_[A-Za-z0-9_-]+$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "S",
+              "SW",
+              "W",
+              "NW",
+              "N",
+              "NE",
+              "E",
+              "SE"
+            ]
+          },
+          "rig_ready": {
+            "type": "boolean"
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "part_id",
+          "name",
+          "direction",
+          "rig_ready",
+          "reasons"
         ]
       },
       "Bone": {
@@ -8423,9 +9584,13 @@
             "type": "string",
             "enum": [
               "draft",
+              "segmented",
+              "needs_repair",
+              "repaired",
               "processing",
               "ready",
               "approved",
+              "rig_ready",
               "failed",
               "archived"
             ]
@@ -8729,9 +9894,13 @@
             "type": "string",
             "enum": [
               "draft",
+              "segmented",
+              "needs_repair",
+              "repaired",
               "processing",
               "ready",
               "approved",
+              "rig_ready",
               "failed",
               "archived"
             ]
@@ -8793,9 +9962,13 @@
             "type": "string",
             "enum": [
               "draft",
+              "segmented",
+              "needs_repair",
+              "repaired",
               "processing",
               "ready",
               "approved",
+              "rig_ready",
               "failed",
               "archived"
             ]

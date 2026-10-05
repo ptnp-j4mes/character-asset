@@ -24,7 +24,7 @@ function pngDataUrl(width = 128, height = 128, mask = null) {
   return `data:image/png;base64,${encodePngRgba({ width, height, rgba }).toString('base64')}`;
 }
 
-async function setup({ imageBridge = null } = {}) {
+async function setup({ imageBridge = null, direction = 'S' } = {}) {
   const root = await mkdtemp(join(tmpdir(), 'character-parts-v1-'));
   const store = new JsonStore(root);
   const service = new CharacterAssetService(store, { imageBridge });
@@ -45,17 +45,17 @@ async function setup({ imageBridge = null } = {}) {
       padding_px: 8
     }
   });
-  const generation = await service.prepareBaseViews({ character_id: 'char_parts_001', views: ['S'] });
+  const generation = await service.prepareBaseViews({ character_id: 'char_parts_001', views: [direction] });
   await service.ingestBaseView({
     character_id: 'char_parts_001',
     generation_id: generation.generation_id,
-    direction: 'S',
+    direction,
     image_data_url: pngDataUrl()
   });
   return { root, store, service, generation };
 }
 
-test('auto-segment persists all 17 deterministic draft parts and warns on 128x128 authoring input', async () => {
+test('auto-segment persists all 17 deterministic repair-aware parts and warns on 128x128 authoring input', async () => {
   const { root, service } = await setup();
   const segmentation = await service.autoSegmentParts({
     character_id: 'char_parts_001',
@@ -79,7 +79,8 @@ test('auto-segment persists all 17 deterministic draft parts and warns on 128x12
       'thigh_r', 'calf_r', 'foot_r'
     ]
   );
-  assert.ok(segmentation.parts.every((part) => part.status === 'draft' && part.approved === false));
+  assert.ok(segmentation.parts.every((part) => ['segmented', 'needs_repair'].includes(part.status) && part.approved === false));
+  assert.ok(segmentation.parts.every((part) => part.repair && Number.isInteger(part.repair.z_order)));
 
   const head = segmentation.parts.find((part) => part.name === 'head');
   const dir = join(root, 'characters', 'char_parts_001', 'parts', 'S', 'head');
@@ -89,6 +90,40 @@ test('auto-segment persists all 17 deterministic draft parts and warns on 128x12
 
   const listed = await service.listParts({ character_id: 'char_parts_001', direction: 'S' });
   assert.deepEqual(listed.parts.map((part) => part.name), segmentation.parts.map((part) => part.name));
+});
+
+test('occluded W parts require repaired.png before approval and become rig-ready after repair', async () => {
+  const { root, service } = await setup({ direction: 'W' });
+  const segmentation = await service.autoSegmentParts({
+    character_id: 'char_parts_001',
+    source_direction: 'W',
+    part_template: 'biped_chibi_parts_v1'
+  });
+  const arm = segmentation.parts.find((part) => part.name === 'upper_arm_r');
+  assert.equal(arm.status, 'needs_repair');
+  assert.equal(arm.repair.required, true);
+
+  const inspection = await service.inspectPartOcclusion({ character_id: 'char_parts_001', direction: 'W' });
+  assert.ok(inspection.needs_repair_count > 0);
+  assert.equal(inspection.next_tool, 'parts.prepare_repair');
+
+  await assert.rejects(
+    service.approvePart({ part_id: arm.part_id }),
+    (error) => error instanceof CharacterAssetError && error.code === 'VALIDATION_FAILED'
+  );
+
+  const prepared = await service.preparePartRepair({ part_id: arm.part_id });
+  assert.match(prepared.prompt, /full canvas size/);
+  const repaired = await service.replaceRepairedPartImage({
+    part_id: arm.part_id,
+    image_data_url: pngDataUrl()
+  });
+  assert.equal(repaired.status, 'repaired');
+  assert.equal(repaired.repair.hidden_area_reconstructed, true);
+  assert.ok((await readFile(join(root, 'characters', 'char_parts_001', 'parts', 'W', 'upper_arm_r', 'repaired.png'))).length > 0);
+
+  const approved = await service.approvePart({ part_id: arm.part_id });
+  assert.equal(approved.approved, true);
 });
 
 test('mask replacement regenerates artifacts and clears approval', async () => {
@@ -108,7 +143,7 @@ test('mask replacement regenerates artifacts and clears approval', async () => {
     mask_data_url: pngDataUrl(128, 128, (x, y) => x >= 48 && x < 80 && y >= 20 && y < 52)
   });
   assert.equal(updated.approved, false);
-  assert.equal(updated.status, 'draft');
+  assert.equal(updated.status, 'segmented');
   assert.notEqual(updated.image_asset_id, head.image_asset_id);
   assert.notEqual(updated.mask_asset_id, head.mask_asset_id);
   assert.deepEqual(updated.bounds, { x: 48, y: 20, width: 32, height: 32 });
@@ -156,7 +191,7 @@ test('manual replacement uses explicit mask and requires replace for an existing
     replace: true
   });
   assert.equal(part.source.type, 'manual_mask');
-  assert.equal(part.status, 'draft');
+  assert.equal(part.status, 'segmented');
   assert.equal(part.approved, false);
 });
 
@@ -167,8 +202,10 @@ test('humanoid compatibility rig auto-binds approved parts only and validates', 
     source_direction: 'S',
     part_template: 'biped_chibi_parts_v1'
   });
-  const head = segmentation.parts.find((part) => part.name === 'head');
-  await service.approvePart({ part_id: head.part_id });
+  for (const part of segmentation.parts) await service.approvePart({ part_id: part.part_id });
+  const readiness = await service.validateRigReadiness({ character_id: 'char_parts_001', direction: 'S' });
+  assert.equal(readiness.valid, true);
+  assert.equal(readiness.rig_ready_count, 17);
 
   const rig = await service.createRig({
     character_id: 'char_parts_001',
@@ -178,10 +215,9 @@ test('humanoid compatibility rig auto-binds approved parts only and validates', 
   assert.equal(rig.preset, 'humanoid_2p5d_basic');
 
   const bound = await service.autoBindParts({ character_id: 'char_parts_001' });
-  assert.deepEqual(bound.bound_part_ids, [head.part_id]);
-  assert.equal(bound.rig.bindings.length, 1);
-  assert.equal(bound.rig.bindings[0].bone_name, 'head');
-  assert.equal(bound.unbound_part_ids.length, 16);
+  assert.equal(bound.bound_part_ids.length, 17);
+  assert.equal(bound.rig.bindings.length, 17);
+  assert.equal(bound.unbound_part_ids.length, 0);
 
   const validation = await service.validateRig({ character_id: 'char_parts_001' });
   assert.equal(validation.valid, true);

@@ -54,7 +54,14 @@ export class JsonStore {
   }
 
   partArtifactPath(characterId, direction, partName, kind) {
-    return join(this.partDir(characterId, direction, partName), kind === 'mask' ? 'mask.png' : 'cutout.png');
+    const filenames = {
+      mask: 'mask.png',
+      cutout: 'cutout.png',
+      repaired: 'repaired.png'
+    };
+    const filename = filenames[kind];
+    if (!filename) throw new Error('Unsupported part artifact kind: ' + kind);
+    return join(this.partDir(characterId, direction, partName), filename);
   }
 
   async read(path) {
@@ -232,6 +239,11 @@ export class JsonStore {
 
   async savePartMetadata(part) {
     return this.write(this.partMetaPath(part.character_id, part.direction, part.name), part);
+  }
+
+  async savePartArtifact(part, kind, bytes) {
+    await this.writeBuffer(this.partArtifactPath(part.character_id, part.direction, part.name, kind), bytes);
+    return bytes;
   }
 
   getPartArtifact(part, kind) {

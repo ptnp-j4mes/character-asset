@@ -211,7 +211,7 @@ export async function handleRest(req, res, url, service) {
     return true;
   }
 
-  const partArtifactMatch = url.pathname.match(/^\/characters\/([^/]+)\/parts\/([^/]+)\/(cutout|mask)$/);
+  const partArtifactMatch = url.pathname.match(/^\/characters\/([^/]+)\/parts\/([^/]+)\/(cutout|mask|repaired)$/);
   if (req.method === 'GET' && partArtifactMatch) {
     const image = await service.getPartArtifact(
       decodeURIComponent(partArtifactMatch[1]),
@@ -230,6 +230,81 @@ export async function handleRest(req, res, url, service) {
     ensurePartCharacter(current.part, characterId);
     const body = await readJsonBody(req, { maxBytes: MAX_IMAGE_BODY_BYTES });
     sendJson(res, 200, { part: await service.updatePartMask({ ...body, part_id: partId }) });
+    return true;
+  }
+
+  const inspectOcclusionMatch = url.pathname.match(/^\/characters\/([^/]+)\/parts:inspect-occlusion$/);
+  if (req.method === 'POST' && inspectOcclusionMatch) {
+    const body = await readJsonBody(req);
+    sendJson(res, 200, await service.inspectPartOcclusion({
+      ...body,
+      character_id: decodeURIComponent(inspectOcclusionMatch[1])
+    }));
+    return true;
+  }
+
+  const prepareRepairMatch = url.pathname.match(/^\/characters\/([^/]+)\/parts\/([^/]+):prepare-repair$/);
+  if (req.method === 'POST' && prepareRepairMatch) {
+    const characterId = decodeURIComponent(prepareRepairMatch[1]);
+    const partId = decodeURIComponent(prepareRepairMatch[2]);
+    const current = await service.getPart(partId);
+    ensurePartCharacter(current.part, characterId);
+    await readJsonBody(req);
+    sendJson(res, 200, await service.preparePartRepair({ part_id: partId }));
+    return true;
+  }
+
+  const repairedImageMatch = url.pathname.match(/^\/characters\/([^/]+)\/parts\/([^/]+)\/repaired$/);
+  if (req.method === 'PUT' && repairedImageMatch) {
+    const characterId = decodeURIComponent(repairedImageMatch[1]);
+    const partId = decodeURIComponent(repairedImageMatch[2]);
+    const current = await service.getPart(partId);
+    ensurePartCharacter(current.part, characterId);
+    const body = await readJsonBody(req, { maxBytes: MAX_IMAGE_BODY_BYTES });
+    sendJson(res, 200, { part: await service.replaceRepairedPartImage({ ...body, part_id: partId }) });
+    return true;
+  }
+
+  const jointPaddingMatch = url.pathname.match(/^\/characters\/([^/]+)\/parts\/([^/]+)\/joint-padding$/);
+  if (req.method === 'PUT' && jointPaddingMatch) {
+    const characterId = decodeURIComponent(jointPaddingMatch[1]);
+    const partId = decodeURIComponent(jointPaddingMatch[2]);
+    const current = await service.getPart(partId);
+    ensurePartCharacter(current.part, characterId);
+    const body = await readJsonBody(req);
+    sendJson(res, 200, { part: await service.setPartJointPadding({ ...body, part_id: partId }) });
+    return true;
+  }
+
+  const zOrderMatch = url.pathname.match(/^\/characters\/([^/]+)\/parts\/([^/]+)\/z-order$/);
+  if (req.method === 'PUT' && zOrderMatch) {
+    const characterId = decodeURIComponent(zOrderMatch[1]);
+    const partId = decodeURIComponent(zOrderMatch[2]);
+    const current = await service.getPart(partId);
+    ensurePartCharacter(current.part, characterId);
+    const body = await readJsonBody(req);
+    sendJson(res, 200, { part: await service.setPartZOrder({ ...body, part_id: partId }) });
+    return true;
+  }
+
+  const markRepairedMatch = url.pathname.match(/^\/characters\/([^/]+)\/parts\/([^/]+):mark-repaired$/);
+  if (req.method === 'POST' && markRepairedMatch) {
+    const characterId = decodeURIComponent(markRepairedMatch[1]);
+    const partId = decodeURIComponent(markRepairedMatch[2]);
+    const current = await service.getPart(partId);
+    ensurePartCharacter(current.part, characterId);
+    await readJsonBody(req);
+    sendJson(res, 200, { part: await service.markPartRepaired({ part_id: partId }) });
+    return true;
+  }
+
+  const validateRigReadinessMatch = url.pathname.match(/^\/characters\/([^/]+)\/parts:validate-rig-readiness$/);
+  if (req.method === 'POST' && validateRigReadinessMatch) {
+    const body = await readJsonBody(req);
+    sendJson(res, 200, await service.validateRigReadiness({
+      ...body,
+      character_id: decodeURIComponent(validateRigReadinessMatch[1])
+    }));
     return true;
   }
 

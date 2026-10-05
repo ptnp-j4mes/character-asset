@@ -123,6 +123,37 @@ function restEquivalent(tool, args) {
       path = `/characters/${id}/parts${args.direction ? `?direction=${encodeURIComponent(args.direction)}` : ""}`;
       body = null;
       break;
+    case "parts.inspect_occlusion":
+      path = `/characters/${id}/parts:inspect-occlusion`;
+      body = args.direction ? { direction: args.direction } : {};
+      break;
+    case "parts.prepare_repair":
+      path = `/characters/${id}/parts/${encodeURIComponent(args.part_id)}:prepare-repair`;
+      body = {};
+      break;
+    case "parts.replace_repaired_image":
+      method = "PUT";
+      path = `/characters/${id}/parts/${encodeURIComponent(args.part_id)}/repaired`;
+      body = { image_data_url: displayArgs(args).image_data_url };
+      break;
+    case "parts.set_joint_padding":
+      method = "PUT";
+      path = `/characters/${id}/parts/${encodeURIComponent(args.part_id)}/joint-padding`;
+      body = { joint_padding: args.joint_padding };
+      break;
+    case "parts.set_z_order":
+      method = "PUT";
+      path = `/characters/${id}/parts/${encodeURIComponent(args.part_id)}/z-order`;
+      body = { z_order: args.z_order };
+      break;
+    case "parts.mark_repaired":
+      path = `/characters/${id}/parts/${encodeURIComponent(args.part_id)}:mark-repaired`;
+      body = {};
+      break;
+    case "parts.validate_rig_readiness":
+      path = `/characters/${id}/parts:validate-rig-readiness`;
+      body = args.direction ? { direction: args.direction } : {};
+      break;
     case "parts.approve":
       path = `/characters/${id}/parts/${encodeURIComponent(args.part_id)}:approve`;
       body = { approved: args.approved ?? true };
@@ -177,9 +208,20 @@ function nextTool(tool, data, succeeded, generation) {
     case "parts.auto_segment":
       return "parts.list";
     case "parts.list":
-      return data?.parts?.some((part) => part.approved) ? "rig.create" : "parts.approve";
+      return "parts.inspect_occlusion";
+    case "parts.inspect_occlusion":
+      return data?.needs_repair_count > 0 ? "parts.prepare_repair" : "parts.validate_rig_readiness";
+    case "parts.prepare_repair":
+      return "parts.replace_repaired_image";
+    case "parts.replace_repaired_image":
+    case "parts.set_joint_padding":
+    case "parts.set_z_order":
+    case "parts.mark_repaired":
+      return "parts.approve";
     case "parts.approve":
-      return "rig.create";
+      return "parts.validate_rig_readiness";
+    case "parts.validate_rig_readiness":
+      return data?.valid ? "rig.create" : "parts.inspect_occlusion";
     case "rig.create":
       return "rig.auto_bind_parts";
     case "rig.auto_bind_parts":
@@ -314,6 +356,7 @@ function App() {
   const [storedViews, setStoredViews] = useState([]);
   const [validation, setValidation] = useState(null);
   const [parts, setParts] = useState([]);
+  const [repairValidation, setRepairValidation] = useState(null);
   const [rig, setRig] = useState(null);
   const [stage, setStage] = useState("Reference");
   const [selectedDirection, setSelectedDirection] = useState("S");
@@ -338,6 +381,9 @@ function App() {
   const promptsReady = Boolean(generation?.views?.some((view) => view.direction === selectedDirection));
   const selectedParts = useMemo(() => parts.filter((part) => part.direction === selectedDirection), [parts, selectedDirection]);
   const approvedParts = useMemo(() => parts.filter((part) => part.approved), [parts]);
+  const rigReadyParts = useMemo(() => parts.filter((part) => part.approved && (!part.repair?.required || part.repair?.hidden_area_reconstructed)), [parts]);
+  const allPartsRigReady = parts.length > 0 && rigReadyParts.length === parts.length;
+  const selectedNeedsRepair = useMemo(() => selectedParts.filter((part) => part.repair?.required && !part.repair?.hidden_area_reconstructed), [selectedParts]);
   const partReadiness = useMemo(() => Object.fromEntries(DIRECTIONS.map((direction) => {
     const directional = parts.filter((part) => part.direction === direction.key);
     return [direction.key, { total: directional.length, approved: directional.filter((part) => part.approved).length }];
@@ -392,9 +438,10 @@ function App() {
       }
       const success = response.ok && !rpc?.error && !rpc?.result?.isError && !data?.error;
       const error = rpc?.error ?? data?.error ?? null;
-      const validationFailed = tool === "character.validate_base_views" && data?.validation && !data.validation.valid;
-      const validationErrors = data?.validation?.errors ?? [];
-      const validationWarnings = data?.validation?.warnings ?? [];
+      const validationFailed = (tool === "character.validate_base_views" && data?.validation && !data.validation.valid)
+        || (tool === "parts.validate_rig_readiness" && data && data.valid === false);
+      const validationErrors = data?.validation?.errors ?? data?.errors ?? [];
+      const validationWarnings = data?.validation?.warnings ?? data?.warnings ?? [];
       const record = {
         tool,
         request,
@@ -451,6 +498,7 @@ function App() {
     setSpec(null);
     setStoredViews([]);
     setParts([]);
+    setRepairValidation(null);
     setRig(null);
     setStage("Reference");
     setSection("Characters");
@@ -546,6 +594,7 @@ function App() {
     setGeneration(null);
     setValidation(null);
     setParts([]);
+    setRepairValidation(null);
     setRig(null);
     setStage("Reference");
     setSection("Characters");
@@ -604,9 +653,79 @@ function App() {
     if (result.success) {
       const list = await callTool("parts.list", { character_id: workspace.character_id });
       if (list.success) setParts(list.data?.parts ?? []);
+      setRepairValidation(null);
       setStage("Parts");
-      setNotice(`Extracted ${result.data?.segmentation?.parts_created ?? 17} draft parts for ${direction}. Review before approval.`);
+      const needsRepair = result.data?.segmentation?.needs_repair_count ?? 0;
+      setNotice(`Extracted ${result.data?.segmentation?.parts_created ?? 17} parts for ${direction}. ${needsRepair} need hidden-area repair.`);
     } else setNotice(result.record.errors[0]?.message ?? "Part extraction failed.");
+    setBusy(false);
+  }
+
+  async function inspectRepairs(direction = selectedDirection) {
+    if (!workspace) return;
+    setBusy(true);
+    const result = await callTool("parts.inspect_occlusion", { character_id: workspace.character_id, direction });
+    if (result.success) {
+      setStage("Repair");
+      setNotice(`${result.data?.needs_repair_count ?? 0} parts in ${direction} still need hidden-area repair.`);
+    } else setNotice(result.record.errors[0]?.message ?? "Occlusion inspection failed.");
+    setBusy(false);
+  }
+
+  async function prepareRepair(part) {
+    if (!workspace) return;
+    setBusy(true);
+    const result = await callTool("parts.prepare_repair", { character_id: workspace.character_id, part_id: part.part_id });
+    if (result.success && result.data?.part) {
+      setParts((items) => items.map((item) => item.part_id === part.part_id ? result.data.part : item));
+      try {
+        await navigator.clipboard.writeText(result.data.prompt ?? "");
+        setNotice(`${part.name} repair prompt prepared and copied. Generate the repaired PNG in ChatGPT, then upload it here.`);
+      } catch {
+        setNotice(`${part.name} repair prompt prepared. Open Inspector to copy the prompt.`);
+      }
+    } else setNotice(result.record.errors[0]?.message ?? "Could not prepare the repair prompt.");
+    setBusy(false);
+  }
+
+  async function uploadRepairedPart(part, file) {
+    if (!workspace) return;
+    if (file.type !== "image/png") {
+      setNotice("Repair artifacts must be PNG files with the same full canvas size as the base view.");
+      return;
+    }
+    setBusy(true);
+    const reader = new FileReader();
+    reader.onerror = () => {
+      setNotice("The repaired PNG could not be read.");
+      setBusy(false);
+    };
+    reader.onload = async () => {
+      const result = await callTool("parts.replace_repaired_image", {
+        character_id: workspace.character_id,
+        part_id: part.part_id,
+        image_data_url: String(reader.result ?? ""),
+      });
+      if (result.success && result.data?.part) {
+        setParts((items) => items.map((item) => item.part_id === part.part_id ? result.data.part : item));
+        setRepairValidation(null);
+        setNotice(`${part.name} repaired.png stored. Review it, then approve the part.`);
+      } else setNotice(result.record.errors[0]?.message ?? "Repair upload failed.");
+      setBusy(false);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function validateRepairReadiness() {
+    if (!workspace) return;
+    setBusy(true);
+    const result = await callTool("parts.validate_rig_readiness", { character_id: workspace.character_id });
+    if (result.success && result.data) {
+      setRepairValidation(result.data);
+      setNotice(result.data.valid
+        ? `All ${result.data.rig_ready_count} extracted parts are rig-ready.`
+        : `${result.data.errors?.length ?? 0} repair/approval issues still block rig creation.`);
+    } else setNotice(result.record.errors[0]?.message ?? "Rig-readiness validation failed.");
     setBusy(false);
   }
 
@@ -616,13 +735,14 @@ function App() {
     const result = await callTool("parts.approve", { character_id: workspace.character_id, part_id: part.part_id, approved: true });
     if (result.success && result.data?.part) {
       setParts((items) => items.map((item) => item.part_id === part.part_id ? result.data.part : item));
+      setRepairValidation(null);
       setNotice(`${part.name} approved for rig binding.`);
     } else setNotice(result.record.errors[0]?.message ?? "Part approval failed.");
     setBusy(false);
   }
 
   async function createRig() {
-    if (!workspace || !spec || approvedParts.length === 0) return;
+    if (!workspace || !spec || !allPartsRigReady) return;
     setBusy(true);
     const result = await callTool("rig.create", {
       character_id: workspace.character_id,
@@ -632,7 +752,7 @@ function App() {
     if (result.success) {
       setRig(result.data?.rig ?? null);
       setStage("Rig");
-      setNotice("Rig created. Approved parts are ready for auto bind.");
+      setNotice("Rig created. Repair-complete approved parts are ready for auto bind.");
     } else setNotice(result.record.errors[0]?.message ?? "Rig creation failed.");
     setBusy(false);
   }
@@ -701,15 +821,17 @@ function App() {
   }
 
   const currentViewCount = storedViews.length;
-  const readiness = approvedParts.length
-    ? `${approvedParts.length} parts approved · Rig ready`
-    : validation?.valid
-      ? "Validated · Ready for parts"
-      : validation
-        ? `Needs view fixes · ${validation.errors.length} missing`
-        : generation
-          ? "Prompts prepared · 5 source references"
-          : "Draft · Source references";
+  const readiness = allPartsRigReady
+    ? `${rigReadyParts.length} parts rig-ready`
+    : parts.length
+      ? `${rigReadyParts.length}/${parts.length} parts rig-ready`
+      : validation?.valid
+        ? "Validated · Ready for parts"
+        : validation
+          ? `Needs view fixes · ${validation.errors.length} missing`
+          : generation
+            ? "Prompts prepared · 5 source references"
+            : "Draft · Source references";
 
   return (
     <div className="app-shell">
@@ -872,10 +994,19 @@ function App() {
               </div>
 
               <div className="stage-switcher" role="tablist" aria-label="Character authoring stage">
-                {["Reference", "Parts", "Rig"].map((name) => (
-                  <button key={name} type="button" role="tab" aria-selected={stage === name} className={stage === name ? "is-active" : ""} onClick={() => setStage(name)} disabled={name === "Rig" && approvedParts.length === 0}>
+                {["Reference", "Parts", "Repair", "Rig"].map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    role="tab"
+                    aria-selected={stage === name}
+                    className={stage === name ? "is-active" : ""}
+                    onClick={() => setStage(name)}
+                    disabled={(name === "Repair" && parts.length === 0) || (name === "Rig" && !allPartsRigReady)}
+                  >
                     {name}
                     {name === "Parts" && <span>{approvedParts.length}/{parts.length || 17}</span>}
+                    {name === "Repair" && <span>{selectedNeedsRepair.length}</span>}
                   </button>
                 ))}
               </div>
@@ -912,35 +1043,108 @@ function App() {
               ) : stage === "Parts" ? (
                 <section className="parts-workspace" aria-label={`${selectedDirection} semantic parts`}>
                   <div className="parts-toolbar">
-                    <div><span className="eyebrow">DIRECTION {selectedDirection}</span><h2>Semantic parts</h2><p>Draft masks are template-assisted. Review every part before rig binding.</p></div>
-                    <button className="secondary-button" type="button" onClick={() => extractParts()} disabled={busy || !activeView || selectedParts.length > 0}>{selectedParts.length ? "17 parts extracted" : "Extract Parts"}</button>
+                    <div><span className="eyebrow">DIRECTION {selectedDirection}</span><h2>Semantic parts</h2><p>Review masks first. Parts with hidden geometry move to Repair before approval.</p></div>
+                    <div className="parts-toolbar-actions">
+                      <button className="secondary-button" type="button" onClick={() => inspectRepairs()} disabled={busy || !selectedParts.length}>Inspect occlusion</button>
+                      <button className="secondary-button" type="button" onClick={() => extractParts()} disabled={busy || !activeView || selectedParts.length > 0}>{selectedParts.length ? "17 parts extracted" : "Extract Parts"}</button>
+                    </div>
                   </div>
                   <div className="parts-layout">
                     <div className="parts-reference">
                       <div className="preview-stage compact"><CharacterArt direction={activeDirection} imageUrl={activeImage} className="hero-art" /><div className="stage-label">REFERENCE</div></div>
-                      <div className="resolution-warning"><WarningCircle size={16} weight="fill" /><span>128 × 128 source: suitable for workflow review, below the recommended 512 × 512 authoring master.</span></div>
+                      <div className="resolution-warning"><WarningCircle size={16} weight="fill" /><span>Use ≥512 × 512 authoring masters for production. Repair artifacts preserve the full source canvas.</span></div>
                     </div>
                     <div className="parts-grid">
-                      {selectedParts.length ? selectedParts.map((part) => (
-                        <article className={`part-card ${part.approved ? "is-approved" : ""}`} key={part.part_id}>
-                          <div className="part-preview"><img src={partImageUrl(workspace.character_id, part.part_id)} alt={`${part.name} cutout`} /></div>
-                          <div className="part-card-copy"><strong>{part.name}</strong><span>{part.status} · {Math.round((part.confidence ?? 0) * 100)}% confidence</span><small>bone · {part.bone_hint}</small></div>
-                          {part.approved ? <span className="part-approved"><CheckCircle size={14} weight="fill" /> Approved</span> : <button className="secondary-button compact-button" type="button" onClick={() => approvePart(part)} disabled={busy}>Approve</button>}
-                        </article>
-                      )) : (
+                      {selectedParts.length ? selectedParts.map((part) => {
+                        const needsRepair = part.repair?.required && !part.repair?.hidden_area_reconstructed;
+                        return (
+                          <article className={`part-card ${part.approved ? "is-approved" : ""} ${needsRepair ? "needs-repair" : ""}`} key={part.part_id}>
+                            <div className="part-preview"><img src={partImageUrl(workspace.character_id, part.part_id)} alt={`${part.name} cutout`} /></div>
+                            <div className="part-card-copy">
+                              <strong>{part.name}</strong>
+                              <span>{part.status} · {Math.round((part.confidence ?? 0) * 100)}% confidence</span>
+                              <small>{needsRepair ? "hidden area repair required" : `bone · ${part.bone_hint}`}</small>
+                            </div>
+                            {part.approved
+                              ? <span className="part-approved"><CheckCircle size={14} weight="fill" /> Approved</span>
+                              : needsRepair
+                                ? <button className="secondary-button compact-button" type="button" onClick={() => { setStage("Repair"); prepareRepair(part); }} disabled={busy}>Repair</button>
+                                : <button className="secondary-button compact-button" type="button" onClick={() => approvePart(part)} disabled={busy}>Approve</button>}
+                          </article>
+                        );
+                      }) : (
                         <div className="parts-empty"><Cube size={28} /><strong>No semantic parts yet</strong><span>Validate the reference, then extract the 17-part biped chibi template.</span></div>
                       )}
                     </div>
+                  </div>
+                </section>
+              ) : stage === "Repair" ? (
+                <section className="repair-workspace" aria-label={`${selectedDirection} part repair`}>
+                  <div className="parts-toolbar">
+                    <div><span className="eyebrow">PHASE 2.5 · DIRECTION {selectedDirection}</span><h2>Part Repair / Occlusion Repair</h2><p>Reconstruct hidden pixels, preserve joint overlap, and verify draw order before rigging.</p></div>
+                    <div className="parts-toolbar-actions">
+                      <button className="secondary-button" type="button" onClick={() => inspectRepairs()} disabled={busy}>Re-scan</button>
+                      <button className="primary-button" type="button" onClick={validateRepairReadiness} disabled={busy || !parts.length}>Validate rig readiness</button>
+                    </div>
+                  </div>
+                  {repairValidation && (
+                    <div className={`repair-summary ${repairValidation.valid ? "is-valid" : ""}`}>
+                      <strong>{repairValidation.valid ? "Rig readiness passed" : "Rig readiness blocked"}</strong>
+                      <span>{repairValidation.rig_ready_count}/{repairValidation.parts_checked} parts ready{repairValidation.valid ? " · Rig unlocked" : ` · ${repairValidation.errors?.length ?? 0} issues remain`}</span>
+                    </div>
+                  )}
+                  <div className="repair-grid">
+                    {selectedParts.length ? selectedParts.map((part) => {
+                      const repair = part.repair ?? {};
+                      const requiresRepair = Boolean(repair.required);
+                      const repaired = Boolean(repair.hidden_area_reconstructed);
+                      const rigReady = part.approved && (!requiresRepair || repaired);
+                      return (
+                        <article className={`repair-card ${rigReady ? "is-ready" : ""} ${requiresRepair && !repaired ? "needs-repair" : ""}`} key={part.part_id}>
+                          <div className="repair-previews">
+                            <div><span>Cutout</span><div className="part-preview repair-preview"><img src={partImageUrl(workspace.character_id, part.part_id)} alt={`${part.name} cutout`} /></div></div>
+                            <div><span>Repaired</span><div className="part-preview repair-preview">{repaired ? <img src={partImageUrl(workspace.character_id, part.part_id, "repaired")} alt={`${part.name} repaired`} /> : <span className="repair-placeholder">—</span>}</div></div>
+                          </div>
+                          <div className="repair-card-copy">
+                            <strong>{part.name}</strong>
+                            <span>{requiresRepair ? (repaired ? "hidden area reconstructed" : repair.reason || "hidden area repair required") : "no hidden-area reconstruction required"}</span>
+                            <small>padding · {JSON.stringify(repair.joint_padding ?? {})}</small>
+                            <small>z-order · {repair.z_order ?? part.default_draw_layer ?? 0}</small>
+                          </div>
+                          <div className="repair-actions">
+                            {requiresRepair && !repaired && <button className="secondary-button compact-button" type="button" onClick={() => prepareRepair(part)} disabled={busy}>Copy repair prompt</button>}
+                            {requiresRepair && (
+                              <>
+                                <button className="secondary-button compact-button" type="button" onClick={() => document.getElementById(`repair-upload-${part.part_id}`)?.click()} disabled={busy}>Upload repaired PNG</button>
+                                <input
+                                  id={`repair-upload-${part.part_id}`}
+                                  className="visually-hidden"
+                                  type="file"
+                                  accept="image/png"
+                                  onChange={(event) => {
+                                    const file = event.currentTarget.files?.[0];
+                                    if (file) uploadRepairedPart(part, file);
+                                    event.currentTarget.value = "";
+                                  }}
+                                />
+                              </>
+                            )}
+                            {!part.approved && (!requiresRepair || repaired) && <button className="primary-button compact-button" type="button" onClick={() => approvePart(part)} disabled={busy}>Approve</button>}
+                            {rigReady && <span className="part-approved"><CheckCircle size={14} weight="fill" /> Rig ready</span>}
+                          </div>
+                        </article>
+                      );
+                    }) : <div className="parts-empty"><Cube size={28} /><strong>No parts to repair</strong><span>Extract semantic parts first.</span></div>}
                   </div>
                 </section>
               ) : (
                 <section className="inline-rig-stage">
                   <div className="rig-card">
                     <div className="rig-card-icon"><GearSix size={22} weight="fill" /></div>
-                    <div className="rig-card-copy"><strong>{rig ? `Rig v${rig.version}` : "Rig not created"}</strong><span>{approvedParts.length} approved parts · {rig?.bindings?.length ?? 0} bindings</span></div>
-                    {!rig ? <button className="primary-button" type="button" onClick={createRig} disabled={busy || approvedParts.length === 0}>Create rig</button> : <button className="primary-button" type="button" onClick={autoBindRig} disabled={busy}>Auto Bind</button>}
+                    <div className="rig-card-copy"><strong>{rig ? `Rig v${rig.version}` : "Rig not created"}</strong><span>{rigReadyParts.length}/{parts.length} rig-ready parts · {rig?.bindings?.length ?? 0} bindings</span></div>
+                    {!rig ? <button className="primary-button" type="button" onClick={createRig} disabled={busy || !allPartsRigReady}>Create rig</button> : <button className="primary-button" type="button" onClick={autoBindRig} disabled={busy}>Auto Bind</button>}
                   </div>
-                  <div className="rig-stage-note">Rig creation is unlocked only after at least one part is approved. Auto Bind ignores draft parts.</div>
+                  <div className="rig-stage-note">Rig creation is unlocked only after every extracted part is approved and any required hidden-area repair is complete.</div>
                 </section>
               )}
 
@@ -992,8 +1196,8 @@ function App() {
               <div className="secondary-title"><div><span className="eyebrow">RIG WORKSPACE</span><h1>{workspace?.character_name ?? "No character selected"}</h1><p>Build the character rig from the active spec preset.</p></div><GearSix size={30} weight="fill" /></div>
               <div className="rig-card">
                 <div className="rig-card-icon"><Cube size={22} weight="fill" /></div>
-                <div className="rig-card-copy"><strong>Biped chibi · v1</strong><span>{spec?.rig_preset ?? "biped_chibi_v1"} · {approvedParts.length} approved parts · {rig?.bindings?.length ?? 0} bound</span></div>
-                {!rig ? <button className="primary-button" type="button" onClick={createRig} disabled={!workspace || busy || approvedParts.length === 0}><GearSix size={15} weight="fill" /> Create rig</button> : <button className="primary-button" type="button" onClick={autoBindRig} disabled={busy}><GearSix size={15} weight="fill" /> Auto Bind</button>}
+                <div className="rig-card-copy"><strong>Biped chibi · v1</strong><span>{spec?.rig_preset ?? "biped_chibi_v1"} · {rigReadyParts.length}/{parts.length} rig-ready parts · {rig?.bindings?.length ?? 0} bound</span></div>
+                {!rig ? <button className="primary-button" type="button" onClick={createRig} disabled={!workspace || busy || !allPartsRigReady}><GearSix size={15} weight="fill" /> Create rig</button> : <button className="primary-button" type="button" onClick={autoBindRig} disabled={busy}><GearSix size={15} weight="fill" /> Auto Bind</button>}
               </div>
               {!workspace && <button className="primary-button create-project-button" type="button" onClick={() => { setModalOpen(true); setFormError(""); }}><Plus size={16} /> Create project</button>}
               {notice && <div className="notice" role="status"><span>{notice}</span><IconButton label="Dismiss message" onClick={() => setNotice("")}><X size={15} /></IconButton></div>}

@@ -171,6 +171,93 @@ function emptyOffset() {
   return { x: 0, y: 0, rotation: 0, scale_x: 1, scale_y: 1 };
 }
 
+const JOINT_PADDING_DEFAULTS = {
+  hair_back: { neck: 8 },
+  head: { neck: 10 },
+  hair_front: { neck: 8 },
+  torso: { neck: 10, shoulder_l: 14, shoulder_r: 14, hip: 12 },
+  pelvis: { hip_l: 14, hip_r: 14 },
+  upper_arm_l: { shoulder: 14, elbow: 10 },
+  forearm_l: { elbow: 10, wrist: 8 },
+  hand_l: { wrist: 8 },
+  upper_arm_r: { shoulder: 14, elbow: 10 },
+  forearm_r: { elbow: 10, wrist: 8 },
+  hand_r: { wrist: 8 },
+  thigh_l: { hip: 14, knee: 10 },
+  calf_l: { knee: 10, ankle: 8 },
+  foot_l: { ankle: 8 },
+  thigh_r: { hip: 14, knee: 10 },
+  calf_r: { knee: 10, ankle: 8 },
+  foot_r: { ankle: 8 }
+};
+
+function jointPaddingFor(name) {
+  return structuredClone(JOINT_PADDING_DEFAULTS[name] ?? { joint: 8 });
+}
+
+function normalizeJointPadding(value, fallback = {}) {
+  if (value === undefined) return structuredClone(fallback);
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    invalid('joint_padding must be an object of joint names to pixel padding', { field: 'joint_padding' });
+  }
+  const result = {};
+  for (const [joint, padding] of Object.entries(value)) {
+    if (!/^[A-Za-z0-9_-]+$/.test(joint) || !Number.isInteger(padding) || padding < 0 || padding > 256) {
+      invalid('joint_padding values must be integer pixels between 0 and 256', { field: 'joint_padding', joint, padding });
+    }
+    result[joint] = padding;
+  }
+  if (!Object.keys(result).length) invalid('joint_padding must contain at least one joint', { field: 'joint_padding' });
+  return result;
+}
+
+function repairMetadataFor(partName, occlusion, zOrder) {
+  const required = occlusion?.needs_completion === true;
+  return {
+    required,
+    state: required ? 'needed' : 'not_required',
+    reason: occlusion?.reason ?? null,
+    hidden_area_reconstructed: false,
+    repaired_image_asset_id: null,
+    joint_padding: jointPaddingFor(partName),
+    z_order: zOrder,
+    prompt: null,
+    prepared_at: null,
+    repaired_at: null
+  };
+}
+
+function repairForPart(part) {
+  const base = repairMetadataFor(part.name, part.occlusion ?? { needs_completion: false, reason: null }, part.default_draw_layer ?? 0);
+  const current = part.repair ?? {};
+  return {
+    ...base,
+    ...structuredClone(current),
+    joint_padding: {
+      ...base.joint_padding,
+      ...(current.joint_padding ?? {})
+    },
+    z_order: Number.isInteger(current.z_order) ? current.z_order : base.z_order
+  };
+}
+
+function partRepairComplete(part) {
+  const repair = repairForPart(part);
+  return !repair.required || (
+    repair.state === 'repaired'
+    && repair.hidden_area_reconstructed === true
+    && typeof repair.repaired_image_asset_id === 'string'
+    && repair.repaired_image_asset_id.length > 0
+  );
+}
+
+function partBaseStatus(part) {
+  const repair = repairForPart(part);
+  if (part.approved) return 'approved';
+  if (repair.required) return repair.state === 'repaired' ? 'repaired' : 'needs_repair';
+  return 'segmented';
+}
+
 export class CharacterAssetService {
   constructor(store) {
     this.store = store;
@@ -555,7 +642,7 @@ export class CharacterAssetService {
         category: definition.category,
         image_asset_id: id('img'),
         mask_asset_id: id('mask'),
-        status: 'draft',
+        status: occlusion.needs_completion ? 'needs_repair' : 'segmented',
         approved: false,
         confidence: segmented.fallback ? Math.min(definition.confidence, 0.4) : definition.confidence,
         source: { type: 'base_view', direction },
@@ -564,6 +651,7 @@ export class CharacterAssetService {
         bone_hint: definition.boneHint,
         default_draw_layer: definition.defaultDrawLayer,
         occlusion,
+        repair: repairMetadataFor(definition.name, occlusion, definition.defaultDrawLayer),
         authoring: authoringMetadata(spec, source.width, source.height),
         created_at: timestamp,
         updated_at: timestamp
@@ -582,6 +670,8 @@ export class CharacterAssetService {
       mode,
       parts_created: created.length,
       draft_count: created.length,
+      segmented_count: created.filter((part) => part.status === 'segmented').length,
+      needs_repair_count: created.filter((part) => part.status === 'needs_repair').length,
       approved_count: 0,
       review_required: true,
       warnings,
@@ -614,7 +704,8 @@ export class CharacterAssetService {
     return {
       part,
       cutout_url: `/characters/${characterId}/parts/${encodedPart}/cutout`,
-      mask_url: `/characters/${characterId}/parts/${encodedPart}/mask`
+      mask_url: `/characters/${characterId}/parts/${encodedPart}/mask`,
+      repaired_url: `/characters/${characterId}/parts/${encodedPart}/repaired`
     };
   }
 
@@ -674,6 +765,16 @@ export class CharacterAssetService {
   async updatePartMask(input) {
     const part = await this.#requirePart(input?.part_id);
     const artifacts = await this.#maskArtifacts(part, input?.mask_data_url);
+    const repair = repairForPart(part);
+    const resetRepair = {
+      ...repair,
+      state: repair.required ? 'needed' : 'not_required',
+      hidden_area_reconstructed: false,
+      repaired_image_asset_id: null,
+      prompt: null,
+      prepared_at: null,
+      repaired_at: null
+    };
     const updated = {
       ...part,
       image_asset_id: id('img'),
@@ -681,7 +782,8 @@ export class CharacterAssetService {
       bounds: artifacts.bounds,
       confidence: Math.max(part.confidence ?? 0, 0.95),
       approved: false,
-      status: 'draft',
+      status: resetRepair.required ? 'needs_repair' : 'segmented',
+      repair: resetRepair,
       updated_at: now()
     };
     await this.store.savePart(updated, artifacts.cutoutBytes, artifacts.maskBytes);
@@ -723,7 +825,7 @@ export class CharacterAssetService {
       category,
       image_asset_id: id('img'),
       mask_asset_id: id('mask'),
-      status: 'draft',
+      status: 'segmented',
       approved: false,
       confidence: 1,
       source: { type: 'manual_mask', direction },
@@ -731,6 +833,7 @@ export class CharacterAssetService {
       pivot: pivotValue(input?.pivot, skeleton.pivot),
       bone_hint: input?.bone_hint ?? skeleton.bone_hint,
       occlusion: { needs_completion: false, reason: null },
+      repair: repairMetadataFor(name, { needs_completion: false, reason: null }, skeleton.default_draw_layer ?? 0),
       authoring: authoringMetadata(spec, artifacts.source.width, artifacts.source.height),
       updated_at: now()
     };
@@ -738,10 +841,191 @@ export class CharacterAssetService {
     return part;
   }
 
+  async inspectPartOcclusion(input) {
+    const characterId = requireId(input?.character_id, 'character_id', ID_PATTERNS.character);
+    await this.getCharacterSpec(characterId);
+    const direction = input?.direction === undefined ? null : requireDirection(input.direction);
+    const parts = (await this.store.listParts(characterId, direction)).sort(directionSort);
+    const inspections = parts.map((part) => {
+      const repair = repairForPart(part);
+      return {
+        part_id: part.part_id,
+        direction: part.direction,
+        name: part.name,
+        needs_repair: repair.required,
+        repair_state: repair.state,
+        reason: repair.reason,
+        hidden_area_reconstructed: repair.hidden_area_reconstructed,
+        joint_padding: repair.joint_padding,
+        z_order: repair.z_order,
+        rig_ready: part.approved === true && partRepairComplete(part)
+      };
+    });
+    return {
+      character_id: characterId,
+      ...(direction ? { direction } : {}),
+      parts_checked: inspections.length,
+      needs_repair_count: inspections.filter((item) => item.needs_repair && !item.hidden_area_reconstructed).length,
+      repaired_count: inspections.filter((item) => item.hidden_area_reconstructed).length,
+      inspections,
+      next_tool: inspections.some((item) => item.needs_repair && !item.hidden_area_reconstructed)
+        ? 'parts.prepare_repair'
+        : 'parts.validate_rig_readiness'
+    };
+  }
+
+  async preparePartRepair(input) {
+    const part = await this.#requirePart(input?.part_id);
+    const repair = repairForPart(part);
+    const prompt = [
+      `Repair the isolated 2.5D character part ${part.name} for direction ${part.direction}.`,
+      `Preserve the visible pixels, silhouette, colors, line style, lighting and scale of the source part.`,
+      repair.reason ? `Occlusion issue: ${repair.reason}.` : 'Complete any hidden geometry needed for safe bone deformation.',
+      `Reconstruct only hidden or missing areas that can become visible when the joint rotates.`,
+      `Maintain overlap padding around joints: ${JSON.stringify(repair.joint_padding)} pixels.`,
+      'Return one transparent PNG on the same full canvas size as the canonical base view.',
+      'No background, floor, cast shadow, text, frame or extra objects.'
+    ].join(' ');
+    const updated = {
+      ...part,
+      approved: false,
+      status: repair.required ? 'needs_repair' : partBaseStatus(part),
+      repair: {
+        ...repair,
+        state: repair.required ? 'prepared' : repair.state,
+        prompt,
+        prepared_at: now()
+      },
+      updated_at: now()
+    };
+    await this.store.savePartMetadata(updated);
+    return { part: updated, prompt };
+  }
+
+  async replaceRepairedPartImage(input) {
+    const part = await this.#requirePart(input?.part_id);
+    const baseBytes = await this.store.getBaseViewImage(part.character_id, part.direction);
+    if (!baseBytes) throw new CharacterAssetError('NOT_FOUND', `Base view ${part.direction} is required to validate repaired part ${part.name}`, { part_id: part.part_id });
+
+    let repairedPng;
+    let base;
+    try {
+      repairedPng = decodePngDataUrl(input?.image_data_url);
+      base = decodePngRgba(baseBytes);
+      decodePngRgba(repairedPng.bytes);
+    } catch (error) {
+      invalid(error.message, { field: 'image_data_url' });
+    }
+    if (repairedPng.width !== base.width || repairedPng.height !== base.height) {
+      invalid('Repaired PNG dimensions must match the canonical base-view canvas', {
+        field: 'image_data_url',
+        expected: { width: base.width, height: base.height },
+        actual: { width: repairedPng.width, height: repairedPng.height }
+      });
+    }
+
+    const repair = repairForPart(part);
+    const updated = {
+      ...part,
+      approved: false,
+      status: 'repaired',
+      repair: {
+        ...repair,
+        state: 'repaired',
+        hidden_area_reconstructed: true,
+        repaired_image_asset_id: id('img'),
+        repaired_at: now()
+      },
+      updated_at: now()
+    };
+    await this.store.savePartArtifact(updated, 'repaired', repairedPng.bytes);
+    await this.store.savePartMetadata(updated);
+    return updated;
+  }
+
+  async setPartJointPadding(input) {
+    const part = await this.#requirePart(input?.part_id);
+    const repair = repairForPart(part);
+    const updated = {
+      ...part,
+      repair: { ...repair, joint_padding: normalizeJointPadding(input?.joint_padding, repair.joint_padding) },
+      updated_at: now()
+    };
+    await this.store.savePartMetadata(updated);
+    return updated;
+  }
+
+  async setPartZOrder(input) {
+    const part = await this.#requirePart(input?.part_id);
+    if (!Number.isInteger(input?.z_order) || input.z_order < -1000 || input.z_order > 1000) {
+      invalid('z_order must be an integer between -1000 and 1000', { field: 'z_order' });
+    }
+    const repair = repairForPart(part);
+    const updated = { ...part, repair: { ...repair, z_order: input.z_order }, updated_at: now() };
+    await this.store.savePartMetadata(updated);
+    return updated;
+  }
+
+  async markPartRepaired(input) {
+    const part = await this.#requirePart(input?.part_id);
+    const repairedBytes = await this.store.getPartArtifact(part, 'repaired');
+    if (!repairedBytes) validationFailed('Marking a part repaired requires repaired.png', { part_id: part.part_id });
+    const repair = repairForPart(part);
+    const updated = {
+      ...part,
+      approved: false,
+      status: 'repaired',
+      repair: {
+        ...repair,
+        state: 'repaired',
+        hidden_area_reconstructed: true,
+        repaired_image_asset_id: repair.repaired_image_asset_id ?? id('img'),
+        repaired_at: repair.repaired_at ?? now()
+      },
+      updated_at: now()
+    };
+    await this.store.savePartMetadata(updated);
+    return updated;
+  }
+
+  async validateRigReadiness(input) {
+    const characterId = requireId(input?.character_id, 'character_id', ID_PATTERNS.character);
+    await this.getCharacterSpec(characterId);
+    const direction = input?.direction === undefined ? null : requireDirection(input.direction);
+    const parts = (await this.store.listParts(characterId, direction)).sort(directionSort);
+    const warnings = [];
+    const errors = [];
+    if (!parts.length) errors.push(direction ? `No semantic parts exist for direction ${direction}` : 'No semantic parts exist for this character');
+
+    const results = parts.map((part) => {
+      const repair = repairForPart(part);
+      const reasons = [];
+      if (repair.required && !partRepairComplete(part)) reasons.push('hidden-area repair is incomplete');
+      if (!repair.joint_padding || !Object.keys(repair.joint_padding).length) reasons.push('joint padding is missing');
+      if (!Number.isInteger(repair.z_order)) reasons.push('z-order is missing');
+      if (!part.approved) reasons.push('part is not approved');
+      const rigReady = reasons.length === 0;
+      if (!rigReady) errors.push(`${part.name} (${part.direction}): ${reasons.join(', ')}`);
+      return { part_id: part.part_id, name: part.name, direction: part.direction, rig_ready: rigReady, reasons };
+    });
+
+    return {
+      valid: errors.length === 0,
+      character_id: characterId,
+      ...(direction ? { direction } : {}),
+      parts_checked: parts.length,
+      rig_ready_count: results.filter((item) => item.rig_ready).length,
+      warnings,
+      errors,
+      parts: results,
+      next_tool: errors.length === 0 ? 'rig.create' : 'parts.inspect_occlusion'
+    };
+  }
+
   async approvePart(input) {
     const part = await this.#requirePart(input?.part_id);
     if (input?.approved === false) {
-      const updated = { ...part, approved: false, status: 'draft', updated_at: now() };
+      const updated = { ...part, approved: false, status: partBaseStatus({ ...part, approved: false }), updated_at: now() };
       await this.store.savePartMetadata(updated);
       return updated;
     }
@@ -750,6 +1034,17 @@ export class CharacterAssetService {
     const cutoutBytes = await this.store.getPartArtifact(part, 'cutout');
     if (!maskBytes || !cutoutBytes) {
       validationFailed('Part approval requires both a mask and cutout artifact', { part_id: part.part_id });
+    }
+    const repair = repairForPart(part);
+    if (repair.required && !partRepairComplete(part)) {
+      validationFailed('Part approval requires hidden-area repair before rig binding', {
+        part_id: part.part_id,
+        repair_state: repair.state,
+        reason: repair.reason
+      });
+    }
+    if (repair.required && !(await this.store.getPartArtifact(part, 'repaired'))) {
+      validationFailed('Part approval requires repaired.png when hidden-area reconstruction is required', { part_id: part.part_id });
     }
     try {
       const mask = decodePngRgba(maskBytes);
@@ -762,7 +1057,7 @@ export class CharacterAssetService {
       validationFailed('Part approval requires valid PNG mask and cutout artifacts', { part_id: part.part_id });
     }
 
-    const updated = { ...part, approved: true, status: 'approved', updated_at: now() };
+    const updated = { ...part, repair, approved: true, status: 'approved', updated_at: now() };
     await this.store.savePartMetadata(updated);
     return updated;
   }
@@ -775,6 +1070,17 @@ export class CharacterAssetService {
       throw new CharacterAssetError('UNSUPPORTED_OPERATION', `Rig preset ${preset} is not implemented in V1`, { rig_preset: preset });
     }
 
+    const parts = await this.store.listParts(characterId);
+    if (parts.length) {
+      const blocked = parts.filter((part) => !part.approved || !partRepairComplete(part));
+      if (blocked.length) {
+        validationFailed('Rig creation requires every extracted part to be approved and repair-complete', {
+          character_id: characterId,
+          blocked_parts: blocked.map((part) => ({ part_id: part.part_id, direction: part.direction, name: part.name, status: part.status }))
+        });
+      }
+    }
+
     const existing = await this.store.getRig(characterId);
     const rig = createBipedChibiRig(
       characterId,
@@ -784,7 +1090,7 @@ export class CharacterAssetService {
     );
 
     if (input?.auto_bind === true) {
-      const approved = (await this.store.listParts(characterId)).filter((part) => part.approved === true);
+      const approved = (await this.store.listParts(characterId)).filter((part) => part.approved === true && partRepairComplete(part));
       const boneNames = new Set(rig.bones.map((bone) => bone.name));
       rig.bindings = approved
         .filter((part) => boneNames.has(part.bone_hint))
@@ -836,7 +1142,7 @@ export class CharacterAssetService {
     let changed = false;
 
     for (const part of parts.sort(directionSort)) {
-      if (!part.approved) {
+      if (!part.approved || !partRepairComplete(part)) {
         unboundPartIds.push(part.part_id);
         continue;
       }
@@ -903,6 +1209,7 @@ export class CharacterAssetService {
       const part = byId.get(binding.part_id);
       if (!part) errors.push(`Binding references missing part ${binding.part_id}`);
       else if (!part.approved) warnings.push(`Binding ${binding.part_id} points to an unapproved part`);
+      else if (!partRepairComplete(part)) warnings.push(`Binding ${binding.part_id} points to a part with incomplete occlusion repair`);
     }
     const approved = parts.filter((part) => part.approved);
     const bound = new Set(rig.bindings.map((binding) => binding.part_id));

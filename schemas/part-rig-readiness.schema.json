@@ -1,58 +1,46 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://character-asset.local/schemas/base-view-validation.schema.json",
-  "title": "BaseViewValidation",
+  "$id": "https://character-asset.local/schemas/part-rig-readiness.schema.json",
+  "title": "PartRigReadiness",
   "type": "object",
   "properties": {
-    "valid": {
+    "part_id": {
+      "type": "string",
+      "pattern": "^part_[A-Za-z0-9_-]+$"
+    },
+    "name": {
+      "type": "string"
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "S",
+        "SW",
+        "W",
+        "NW",
+        "N",
+        "NE",
+        "E",
+        "SE"
+      ]
+    },
+    "rig_ready": {
       "type": "boolean"
     },
-    "score": {
-      "type": "integer",
-      "minimum": 0,
-      "maximum": 100
-    },
-    "views_checked": {
-      "type": "integer",
-      "minimum": 0
-    },
-    "required_views": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "enum": [
-          "S",
-          "SW",
-          "W",
-          "NW",
-          "N"
-        ]
-      }
-    },
-    "warnings": {
+    "reasons": {
       "type": "array",
       "items": {
         "type": "string"
       }
-    },
-    "errors": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "next_tool": {
-      "type": "string"
     }
   },
   "additionalProperties": false,
   "required": [
-    "valid",
-    "score",
-    "views_checked",
-    "required_views",
-    "warnings",
-    "errors"
+    "part_id",
+    "name",
+    "direction",
+    "rig_ready",
+    "reasons"
   ],
   "$defs": {
     "Error": {
@@ -510,6 +498,60 @@
         "character_lock",
         "views",
         "created_at"
+      ]
+    },
+    "BaseViewValidation": {
+      "type": "object",
+      "properties": {
+        "valid": {
+          "type": "boolean"
+        },
+        "score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "views_checked": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "required_views": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "S",
+              "SW",
+              "W",
+              "NW",
+              "N"
+            ]
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "next_tool": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "valid",
+        "score",
+        "views_checked",
+        "required_views",
+        "warnings",
+        "errors"
       ]
     },
     "ImageHandoff": {
@@ -1108,48 +1150,6 @@
         "joint_padding",
         "z_order",
         "rig_ready"
-      ]
-    },
-    "PartRigReadiness": {
-      "type": "object",
-      "properties": {
-        "part_id": {
-          "type": "string",
-          "pattern": "^part_[A-Za-z0-9_-]+$"
-        },
-        "name": {
-          "type": "string"
-        },
-        "direction": {
-          "type": "string",
-          "enum": [
-            "S",
-            "SW",
-            "W",
-            "NW",
-            "N",
-            "NE",
-            "E",
-            "SE"
-          ]
-        },
-        "rig_ready": {
-          "type": "boolean"
-        },
-        "reasons": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      },
-      "additionalProperties": false,
-      "required": [
-        "part_id",
-        "name",
-        "direction",
-        "rig_ready",
-        "reasons"
       ]
     },
     "Bone": {

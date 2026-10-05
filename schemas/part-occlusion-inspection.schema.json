@@ -1,58 +1,82 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://character-asset.local/schemas/base-view-validation.schema.json",
-  "title": "BaseViewValidation",
+  "$id": "https://character-asset.local/schemas/part-occlusion-inspection.schema.json",
+  "title": "PartOcclusionInspection",
   "type": "object",
   "properties": {
-    "valid": {
+    "part_id": {
+      "type": "string",
+      "pattern": "^part_[A-Za-z0-9_-]+$"
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "S",
+        "SW",
+        "W",
+        "NW",
+        "N",
+        "NE",
+        "E",
+        "SE"
+      ]
+    },
+    "name": {
+      "type": "string"
+    },
+    "needs_repair": {
       "type": "boolean"
     },
-    "score": {
-      "type": "integer",
-      "minimum": 0,
-      "maximum": 100
+    "repair_state": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "needed",
+        "prepared",
+        "repaired"
+      ]
     },
-    "views_checked": {
-      "type": "integer",
-      "minimum": 0
+    "reason": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
-    "required_views": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "enum": [
-          "S",
-          "SW",
-          "W",
-          "NW",
-          "N"
-        ]
+    "hidden_area_reconstructed": {
+      "type": "boolean"
+    },
+    "joint_padding": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 256
       }
     },
-    "warnings": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
+    "z_order": {
+      "type": "integer"
     },
-    "errors": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "next_tool": {
-      "type": "string"
+    "rig_ready": {
+      "type": "boolean"
     }
   },
   "additionalProperties": false,
   "required": [
-    "valid",
-    "score",
-    "views_checked",
-    "required_views",
-    "warnings",
-    "errors"
+    "part_id",
+    "direction",
+    "name",
+    "needs_repair",
+    "repair_state",
+    "reason",
+    "hidden_area_reconstructed",
+    "joint_padding",
+    "z_order",
+    "rig_ready"
   ],
   "$defs": {
     "Error": {
@@ -510,6 +534,60 @@
         "character_lock",
         "views",
         "created_at"
+      ]
+    },
+    "BaseViewValidation": {
+      "type": "object",
+      "properties": {
+        "valid": {
+          "type": "boolean"
+        },
+        "score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "views_checked": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "required_views": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "S",
+              "SW",
+              "W",
+              "NW",
+              "N"
+            ]
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "next_tool": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "valid",
+        "score",
+        "views_checked",
+        "required_views",
+        "warnings",
+        "errors"
       ]
     },
     "ImageHandoff": {
@@ -1030,84 +1108,6 @@
         "warnings",
         "parts",
         "next_tool"
-      ]
-    },
-    "PartOcclusionInspection": {
-      "type": "object",
-      "properties": {
-        "part_id": {
-          "type": "string",
-          "pattern": "^part_[A-Za-z0-9_-]+$"
-        },
-        "direction": {
-          "type": "string",
-          "enum": [
-            "S",
-            "SW",
-            "W",
-            "NW",
-            "N",
-            "NE",
-            "E",
-            "SE"
-          ]
-        },
-        "name": {
-          "type": "string"
-        },
-        "needs_repair": {
-          "type": "boolean"
-        },
-        "repair_state": {
-          "type": "string",
-          "enum": [
-            "not_required",
-            "needed",
-            "prepared",
-            "repaired"
-          ]
-        },
-        "reason": {
-          "oneOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "hidden_area_reconstructed": {
-          "type": "boolean"
-        },
-        "joint_padding": {
-          "type": "object",
-          "properties": {},
-          "additionalProperties": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 256
-          }
-        },
-        "z_order": {
-          "type": "integer"
-        },
-        "rig_ready": {
-          "type": "boolean"
-        }
-      },
-      "additionalProperties": false,
-      "required": [
-        "part_id",
-        "direction",
-        "name",
-        "needs_repair",
-        "repair_state",
-        "reason",
-        "hidden_area_reconstructed",
-        "joint_padding",
-        "z_order",
-        "rig_ready"
       ]
     },
     "PartRigReadiness": {
