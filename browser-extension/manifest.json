@@ -1,14 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Character-Asset Companion",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Send ChatGPT Web generated images into the active Character-Asset handoff.",
   "permissions": ["storage"],
   "host_permissions": [
     "https://chatgpt.com/*",
     "https://chat.openai.com/*",
-    "http://127.0.0.1:8787/*",
-    "http://localhost:8787/*"
+    "http://127.0.0.1/*",
+    "http://localhost/*"
   ],
   "background": { "service_worker": "service-worker.js", "type": "module" },
   "content_scripts": [
