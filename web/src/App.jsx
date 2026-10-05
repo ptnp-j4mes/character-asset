@@ -112,12 +112,42 @@ function restEquivalent(tool, args) {
       path = `/characters/${id}/base-views:validate`;
       body = {};
       break;
+    case "parts.auto_segment": {
+      path = `/characters/${id}/parts:auto-segment`;
+      const { character_id, ...rest } = args;
+      body = rest;
+      break;
+    }
+    case "parts.list":
+      method = "GET";
+      path = `/characters/${id}/parts${args.direction ? `?direction=${encodeURIComponent(args.direction)}` : ""}`;
+      body = null;
+      break;
+    case "parts.approve":
+      path = `/characters/${id}/parts/${encodeURIComponent(args.part_id)}:approve`;
+      body = { approved: args.approved ?? true };
+      break;
     case "rig.create": {
       path = `/characters/${id}/rig`;
       const { character_id, ...rest } = args;
       body = rest;
       break;
     }
+    case "rig.get":
+      method = "GET";
+      path = `/characters/${id}/rig`;
+      body = null;
+      break;
+    case "rig.auto_bind_parts": {
+      path = `/characters/${id}/rig:auto-bind`;
+      const { character_id, ...rest } = args;
+      body = rest;
+      break;
+    }
+    case "rig.validate":
+      path = `/characters/${id}/rig:validate`;
+      body = {};
+      break;
     default:
       path = "/mcp";
       body = args;
@@ -143,8 +173,18 @@ function nextTool(tool, data, succeeded, generation) {
         ? "character.validate_base_views"
         : generation?.generation_id ? "character.ingest_base_view" : "character.prepare_base_views";
     case "character.validate_base_views":
-      return data?.validation?.valid ? "rig.create" : "character.ingest_base_view";
+      return data?.validation?.valid ? "parts.auto_segment" : "character.ingest_base_view";
+    case "parts.auto_segment":
+      return "parts.list";
+    case "parts.list":
+      return data?.parts?.some((part) => part.approved) ? "rig.create" : "parts.approve";
+    case "parts.approve":
+      return "rig.create";
     case "rig.create":
+      return "rig.auto_bind_parts";
+    case "rig.auto_bind_parts":
+      return "rig.validate";
+    case "rig.validate":
       return "—";
     default:
       return "—";
@@ -186,6 +226,10 @@ function sourceUrl(file) {
 
 function savedImageUrl(characterId, direction) {
   return `/api/characters/${encodeURIComponent(characterId)}/base-views/${direction}/image`;
+}
+
+function partImageUrl(characterId, partId, kind = "cutout") {
+  return `/api/characters/${encodeURIComponent(characterId)}/parts/${encodeURIComponent(partId)}/${kind}`;
 }
 
 function CharacterArt({ direction, imageUrl, className = "" }) {
@@ -264,13 +308,16 @@ function App() {
   const bootstrapped = useRef(false);
   const inspectorRef = useRef(null);
   const [workspace, setWorkspace] = useState(null);
+  const [projects, setProjects] = useState([]);
   const [spec, setSpec] = useState(null);
   const [generation, setGeneration] = useState(null);
   const [storedViews, setStoredViews] = useState([]);
   const [validation, setValidation] = useState(null);
+  const [parts, setParts] = useState([]);
+  const [rig, setRig] = useState(null);
+  const [stage, setStage] = useState("Reference");
   const [selectedDirection, setSelectedDirection] = useState("S");
   const [section, setSection] = useState("Characters");
-  const [projectExpanded, setProjectExpanded] = useState(true);
   const [baseViewsExpanded, setBaseViewsExpanded] = useState(true);
   const [componentsExpanded, setComponentsExpanded] = useState(true);
   const [inspectorTab, setInspectorTab] = useState("Inspector");
@@ -289,6 +336,12 @@ function App() {
   const activeView = viewsByDirection[selectedDirection];
   const activeImage = workspace && activeView ? savedImageUrl(workspace.character_id, selectedDirection) : null;
   const promptsReady = Boolean(generation?.views?.some((view) => view.direction === selectedDirection));
+  const selectedParts = useMemo(() => parts.filter((part) => part.direction === selectedDirection), [parts, selectedDirection]);
+  const approvedParts = useMemo(() => parts.filter((part) => part.approved), [parts]);
+  const partReadiness = useMemo(() => Object.fromEntries(DIRECTIONS.map((direction) => {
+    const directional = parts.filter((part) => part.direction === direction.key);
+    return [direction.key, { total: directional.length, approved: directional.filter((part) => part.approved).length }];
+  })), [parts]);
 
   useEffect(() => {
     let mounted = true;
@@ -380,25 +433,47 @@ function App() {
     }
   }
 
+  async function refreshProjects() {
+    const response = await fetch("/api/projects");
+    const data = await response.json();
+    if (!response.ok) throw new Error(data?.error?.message ?? "Could not load projects.");
+    setProjects(data.projects ?? []);
+    return data.projects ?? [];
+  }
+
+  async function activateWorkspace(next) {
+    const active = { ...next, character_name: next.character_name ?? next.name, generation: next.generation ?? null };
+    saveWorkspace(active);
+    setProjectName(active.project_name);
+    setCharacterName(active.character_name);
+    setGeneration(active.generation);
+    setValidation(null);
+    setSpec(null);
+    setStoredViews([]);
+    setParts([]);
+    setRig(null);
+    setStage("Reference");
+    setSection("Characters");
+    setSelectedDirection("S");
+    setBusy(true);
+    const specResult = await callTool("character.get_spec", { character_id: active.character_id }, active.generation);
+    if (specResult.success) setSpec(specResult.data?.spec ?? null);
+    const viewsResult = await callTool("character.get_base_views", { character_id: active.character_id }, active.generation);
+    if (viewsResult.success) setStoredViews(viewsResult.data?.views ?? []);
+    const partsResult = await callTool("parts.list", { character_id: active.character_id }, active.generation);
+    if (partsResult.success) setParts(partsResult.data?.parts ?? []);
+    const rigResult = await callTool("rig.get", { character_id: active.character_id }, active.generation);
+    if (rigResult.success) setRig(rigResult.data?.rig ?? null);
+    setBusy(false);
+  }
+
   useEffect(() => {
     if (bootstrapped.current) return;
     bootstrapped.current = true;
     let saved;
     try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null"); } catch { saved = null; }
-    if (!saved?.character_id) return;
-
-    setWorkspace(saved);
-    setProjectName(saved.project_name ?? "Demo Project");
-    setCharacterName(saved.character_name ?? "Novice Adventurer 02");
-    setGeneration(saved.generation ?? null);
-    setBusy(true);
-    (async () => {
-      const specResult = await callTool("character.get_spec", { character_id: saved.character_id });
-      if (specResult.success) setSpec(specResult.data?.spec ?? null);
-      const viewsResult = await callTool("character.get_base_views", { character_id: saved.character_id }, saved.generation ?? null);
-      if (viewsResult.success) setStoredViews(viewsResult.data?.views ?? []);
-      setBusy(false);
-    })();
+    refreshProjects().catch((error) => setNotice(error.message));
+    if (saved?.character_id) activateWorkspace(saved);
   }, []);
 
   function saveWorkspace(next) {
@@ -452,6 +527,7 @@ function App() {
     });
     if (!characterResult.success || !characterResult.data?.spec) {
       setBusy(false);
+      refreshProjects().catch(() => {});
       setFormError(characterResult.record.errors[0]?.message ?? "Could not create the character spec.");
       return;
     }
@@ -464,10 +540,14 @@ function App() {
       generation: null,
     };
     saveWorkspace(nextWorkspace);
+    refreshProjects().catch((error) => setNotice(error.message));
     setSpec(characterResult.data.spec);
     setStoredViews([]);
     setGeneration(null);
     setValidation(null);
+    setParts([]);
+    setRig(null);
+    setStage("Reference");
     setSection("Characters");
     setSelectedDirection("S");
     setModalOpen(false);
@@ -501,7 +581,7 @@ function App() {
       setValidation(result.data.validation);
       const validationResult = result.data.validation;
       setNotice(validationResult.valid
-        ? `Validated ${validationResult.views_checked} base views. Ready for rig.`
+        ? `Validated ${validationResult.views_checked} base views. Ready to extract riggable parts.`
         : `${validationResult.errors.length} required view${validationResult.errors.length === 1 ? "" : "s"} still missing.`);
     } else {
       setNotice(result.record.errors[0]?.message ?? "Validation could not be completed.");
@@ -509,14 +589,62 @@ function App() {
     setBusy(false);
   }
 
+  async function extractParts(direction = selectedDirection) {
+    if (!workspace || !viewsByDirection[direction]) {
+      setNotice(`Store the ${direction} reference before extracting parts.`);
+      return;
+    }
+    setBusy(true);
+    const result = await callTool("parts.auto_segment", {
+      character_id: workspace.character_id,
+      source_direction: direction,
+      part_template: "biped_chibi_parts_v1",
+      mode: "hybrid",
+    });
+    if (result.success) {
+      const list = await callTool("parts.list", { character_id: workspace.character_id });
+      if (list.success) setParts(list.data?.parts ?? []);
+      setStage("Parts");
+      setNotice(`Extracted ${result.data?.segmentation?.parts_created ?? 17} draft parts for ${direction}. Review before approval.`);
+    } else setNotice(result.record.errors[0]?.message ?? "Part extraction failed.");
+    setBusy(false);
+  }
+
+  async function approvePart(part) {
+    if (!workspace) return;
+    setBusy(true);
+    const result = await callTool("parts.approve", { character_id: workspace.character_id, part_id: part.part_id, approved: true });
+    if (result.success && result.data?.part) {
+      setParts((items) => items.map((item) => item.part_id === part.part_id ? result.data.part : item));
+      setNotice(`${part.name} approved for rig binding.`);
+    } else setNotice(result.record.errors[0]?.message ?? "Part approval failed.");
+    setBusy(false);
+  }
+
   async function createRig() {
-    if (!workspace || !spec) return;
+    if (!workspace || !spec || approvedParts.length === 0) return;
     setBusy(true);
     const result = await callTool("rig.create", {
       character_id: workspace.character_id,
       rig_preset: spec.rig_preset,
+      auto_bind: false,
     });
-    setNotice(result.success ? "Rig created from the selected biped chibi preset." : result.record.errors[0]?.message ?? "Rig creation failed.");
+    if (result.success) {
+      setRig(result.data?.rig ?? null);
+      setStage("Rig");
+      setNotice("Rig created. Approved parts are ready for auto bind.");
+    } else setNotice(result.record.errors[0]?.message ?? "Rig creation failed.");
+    setBusy(false);
+  }
+
+  async function autoBindRig() {
+    if (!workspace || !rig) return;
+    setBusy(true);
+    const result = await callTool("rig.auto_bind_parts", { character_id: workspace.character_id });
+    if (result.success) {
+      setRig(result.data?.rig ?? rig);
+      setNotice(`Bound ${result.data?.bound_part_ids?.length ?? 0} approved parts. ${result.data?.unmatched_bones?.length ?? 0} bones remain unmatched.`);
+    } else setNotice(result.record.errors[0]?.message ?? "Auto bind failed.");
     setBusy(false);
   }
 
@@ -573,13 +701,15 @@ function App() {
   }
 
   const currentViewCount = storedViews.length;
-  const readiness = validation?.valid
-    ? "Validated · Ready for rig"
-    : validation
-      ? `Needs view fixes · ${validation.errors.length} missing`
-    : generation
-      ? "Prompts prepared · 5 source references"
-      : "Draft · Source references";
+  const readiness = approvedParts.length
+    ? `${approvedParts.length} parts approved · Rig ready`
+    : validation?.valid
+      ? "Validated · Ready for parts"
+      : validation
+        ? `Needs view fixes · ${validation.errors.length} missing`
+        : generation
+          ? "Prompts prepared · 5 source references"
+          : "Draft · Source references";
 
   return (
     <div className="app-shell">
@@ -602,8 +732,8 @@ function App() {
         <div className="topbar-status">
           <span className={`connection-dot ${online ? "is-online" : ""}`} />
           <span>{online ? "MCP connected" : "MCP offline"}</span>
-          <button aria-label="New workspace" className="new-workspace" type="button" onClick={() => { setModalOpen(true); setFormError(""); }}>
-            <Plus size={15} weight="bold" /> <span>New workspace</span>
+          <button aria-label="New project" className="new-workspace" type="button" onClick={() => { setModalOpen(true); setFormError(""); }}>
+            <Plus size={15} weight="bold" /> <span>New project</span>
           </button>
         </div>
       </header>
@@ -612,30 +742,41 @@ function App() {
         <aside className="sidebar" aria-label="Project asset tree">
           <div className="sidebar-title-row">
             <h2>Projects</h2>
-            <IconButton label="Create a new workspace" onClick={() => { setModalOpen(true); setFormError(""); }}>
+            <IconButton label="Create a new project" onClick={() => { setModalOpen(true); setFormError(""); }}>
               <Plus size={17} weight="bold" />
             </IconButton>
           </div>
           <div className="tree-content">
-            <div className="tree-project">
-              <button
-                type="button"
-                className="tree-line project-line tree-toggle"
-                aria-expanded={projectExpanded}
-                aria-controls="project-tree-children"
-                onClick={() => setProjectExpanded((expanded) => !expanded)}
-              >
-                {projectExpanded ? <CaretDown size={13} weight="fill" /> : <CaretRight size={13} weight="fill" />}
-                <FolderSimple size={17} weight="fill" className="tree-folder" />
-                <span>{workspace?.project_name ?? "RO Original Male"}</span>
-              </button>
-              <div id="project-tree-children" hidden={!projectExpanded}>
-                <button type="button" className="tree-line character-line is-selected" onClick={() => setSection("Characters")}>
-                  <span className="tree-spacer" />
-                  <span className="tree-avatar"><CharacterArt direction={DIRECTIONS[0]} /></span>
-                  <span>{workspace?.character_name ?? "Novice Adventurer 02"}</span>
+            {projects.length ? projects.map((project) => (
+              <div className="tree-project" key={project.project_id}>
+                <button
+                  type="button"
+                  className={`tree-line project-line tree-toggle ${workspace?.project_id === project.project_id ? "is-current" : ""}`}
+                  disabled={busy}
+                  onClick={() => {
+                    if (project.characters[0]) activateWorkspace({ project_id: project.project_id, project_name: project.name, ...project.characters[0] });
+                    else setSection("Projects");
+                  }}
+                >
+                  <FolderSimple size={17} weight="fill" className="tree-folder" />
+                  <span>{project.name}</span>
                 </button>
-                <div className="tree-nested">
+                {project.characters.map((character) => (
+                  <button
+                    key={character.character_id}
+                    type="button"
+                    className={`tree-line character-line ${workspace?.character_id === character.character_id ? "is-selected" : ""}`}
+                    disabled={busy}
+                    onClick={() => activateWorkspace({ project_id: project.project_id, project_name: project.name, ...character })}
+                  >
+                    <span className="tree-spacer" />
+                    <span className="tree-avatar"><CharacterArt direction={DIRECTIONS[0]} /></span>
+                    <span>{character.name}</span>
+                  </button>
+                ))}
+              </div>
+            )) : <p className="tree-empty">No projects yet. Create one to begin.</p>}
+            {workspace && <div className="tree-nested">
                   <button
                     type="button"
                     className="tree-line folder-line tree-toggle"
@@ -664,9 +805,7 @@ function App() {
                       ))}
                     </div>
                   </div>
-                </div>
-              </div>
-            </div>
+                </div>}
             <div className="tree-divider" />
             <div className="tree-label">SOURCE KIT</div>
             <button
@@ -698,16 +837,16 @@ function App() {
             <>
               <div className="breadcrumbs">
                 <span>Projects</span><CaretRight size={12} />
-                <span>{workspace?.project_name ?? "RO Original Male"}</span><CaretRight size={12} />
-                <span>{workspace?.character_name ?? "Novice Adventurer 02"}</span><CaretRight size={12} />
+                <span>{workspace?.project_name ?? "No project selected"}</span><CaretRight size={12} />
+                <span>{workspace?.character_name ?? "No character selected"}</span><CaretRight size={12} />
                 <span>Base Views</span><CaretRight size={12} />
                 <strong>{selectedDirection} ({activeDirection.name})</strong>
               </div>
               <div className="asset-heading">
                 <div className="asset-title-wrap">
-                  <h1>{workspace?.character_name ?? "Novice Adventurer 02"}</h1>
+                  <h1>{workspace?.character_name ?? "No character selected"}</h1>
                   <p className="asset-summary">
-                    <span>{currentViewCount || 5} {currentViewCount === 1 ? "stored view" : "base view references"}</span>
+                    <span>{currentViewCount} {currentViewCount === 1 ? "stored view" : "base view references"}</span>
                     <span className="summary-dot">•</span><span>128 × 128</span>
                     <span className="summary-dot">•</span>
                     <span className={`readiness ${validation?.valid ? "readiness-good" : ""}`}><span className="readiness-dot" />{readiness}</span>
@@ -715,7 +854,7 @@ function App() {
                 </div>
                 <div className="workspace-actions">
                   {!workspace ? (
-                    <button className="primary-button" type="button" onClick={() => { setModalOpen(true); setFormError(""); }}><Plus size={16} weight="bold" /> Create character spec</button>
+                    <button className="primary-button" type="button" onClick={() => { setModalOpen(true); setFormError(""); }}><Plus size={16} weight="bold" /> Create project</button>
                   ) : (
                     <>
                       <button className="secondary-button" type="button" onClick={prepareViews} disabled={busy}><Sparkle size={15} weight="fill" /> Prepare prompts</button>
@@ -732,27 +871,78 @@ function App() {
                 </div>
               </div>
 
-              <div className="preview-stage" aria-label={`${selectedDirection} character preview`}>
-                <CharacterArt direction={activeDirection} imageUrl={activeImage} className="hero-art" />
-                <div className="stage-label"><span className="stage-live-dot" />{activeView ? "STORED PNG" : "SOURCE REFERENCE"}</div>
-                <div className="stage-size">128 × 128</div>
-              </div>
-
-              <div className="view-grid" aria-label="Base view references">
-                {DIRECTIONS.map((direction) => (
-                  <ViewCard
-                    key={direction.key}
-                    direction={direction}
-                    selected={direction.key === selectedDirection}
-                    saved={viewsByDirection[direction.key]}
-                    validation={validation}
-                    imageUrl={workspace && viewsByDirection[direction.key] ? savedImageUrl(workspace.character_id, direction.key) : null}
-                    generationReady={Boolean(generation?.views?.some((view) => view.direction === direction.key))}
-                    onSelect={() => setSelectedDirection(direction.key)}
-                    onUpload={uploadView}
-                  />
+              <div className="stage-switcher" role="tablist" aria-label="Character authoring stage">
+                {["Reference", "Parts", "Rig"].map((name) => (
+                  <button key={name} type="button" role="tab" aria-selected={stage === name} className={stage === name ? "is-active" : ""} onClick={() => setStage(name)} disabled={name === "Rig" && approvedParts.length === 0}>
+                    {name}
+                    {name === "Parts" && <span>{approvedParts.length}/{parts.length || 17}</span>}
+                  </button>
                 ))}
               </div>
+
+              {stage === "Reference" ? (
+                <>
+                  <div className="preview-stage" aria-label={`${selectedDirection} character reference`}>
+                    <CharacterArt direction={activeDirection} imageUrl={activeImage} className="hero-art" />
+                    <div className="stage-label"><span className="stage-live-dot" />REFERENCE · {activeView ? "STORED PNG" : "SOURCE KIT"}</div>
+                    <div className="stage-size">128 × 128 · authoring target ≥ 512²</div>
+                  </div>
+                  <div className="view-grid" aria-label="Base view references">
+                    {DIRECTIONS.map((direction) => (
+                      <ViewCard
+                        key={direction.key}
+                        direction={direction}
+                        selected={direction.key === selectedDirection}
+                        saved={viewsByDirection[direction.key]}
+                        validation={validation}
+                        imageUrl={workspace && viewsByDirection[direction.key] ? savedImageUrl(workspace.character_id, direction.key) : null}
+                        generationReady={Boolean(generation?.views?.some((view) => view.direction === direction.key))}
+                        onSelect={() => setSelectedDirection(direction.key)}
+                        onUpload={uploadView}
+                      />
+                    ))}
+                  </div>
+                  {validation?.valid && (
+                    <div className="parts-cta">
+                      <div><strong>{selectedDirection} reference validated</strong><span>Parts {partReadiness[selectedDirection]?.approved ?? 0} / 17 approved</span></div>
+                      <button className="primary-button" type="button" onClick={() => extractParts()} disabled={busy || !activeView || selectedParts.length > 0}><Cube size={15} weight="fill" /> {selectedParts.length ? "Parts extracted" : "Extract Parts"}</button>
+                    </div>
+                  )}
+                </>
+              ) : stage === "Parts" ? (
+                <section className="parts-workspace" aria-label={`${selectedDirection} semantic parts`}>
+                  <div className="parts-toolbar">
+                    <div><span className="eyebrow">DIRECTION {selectedDirection}</span><h2>Semantic parts</h2><p>Draft masks are template-assisted. Review every part before rig binding.</p></div>
+                    <button className="secondary-button" type="button" onClick={() => extractParts()} disabled={busy || !activeView || selectedParts.length > 0}>{selectedParts.length ? "17 parts extracted" : "Extract Parts"}</button>
+                  </div>
+                  <div className="parts-layout">
+                    <div className="parts-reference">
+                      <div className="preview-stage compact"><CharacterArt direction={activeDirection} imageUrl={activeImage} className="hero-art" /><div className="stage-label">REFERENCE</div></div>
+                      <div className="resolution-warning"><WarningCircle size={16} weight="fill" /><span>128 × 128 source: suitable for workflow review, below the recommended 512 × 512 authoring master.</span></div>
+                    </div>
+                    <div className="parts-grid">
+                      {selectedParts.length ? selectedParts.map((part) => (
+                        <article className={`part-card ${part.approved ? "is-approved" : ""}`} key={part.part_id}>
+                          <div className="part-preview"><img src={partImageUrl(workspace.character_id, part.part_id)} alt={`${part.name} cutout`} /></div>
+                          <div className="part-card-copy"><strong>{part.name}</strong><span>{part.status} · {Math.round((part.confidence ?? 0) * 100)}% confidence</span><small>bone · {part.bone_hint}</small></div>
+                          {part.approved ? <span className="part-approved"><CheckCircle size={14} weight="fill" /> Approved</span> : <button className="secondary-button compact-button" type="button" onClick={() => approvePart(part)} disabled={busy}>Approve</button>}
+                        </article>
+                      )) : (
+                        <div className="parts-empty"><Cube size={28} /><strong>No semantic parts yet</strong><span>Validate the reference, then extract the 17-part biped chibi template.</span></div>
+                      )}
+                    </div>
+                  </div>
+                </section>
+              ) : (
+                <section className="inline-rig-stage">
+                  <div className="rig-card">
+                    <div className="rig-card-icon"><GearSix size={22} weight="fill" /></div>
+                    <div className="rig-card-copy"><strong>{rig ? `Rig v${rig.version}` : "Rig not created"}</strong><span>{approvedParts.length} approved parts · {rig?.bindings?.length ?? 0} bindings</span></div>
+                    {!rig ? <button className="primary-button" type="button" onClick={createRig} disabled={busy || approvedParts.length === 0}>Create rig</button> : <button className="primary-button" type="button" onClick={autoBindRig} disabled={busy}>Auto Bind</button>}
+                  </div>
+                  <div className="rig-stage-note">Rig creation is unlocked only after at least one part is approved. Auto Bind ignores draft parts.</div>
+                </section>
+              )}
 
               <section className="recent-operation">
                 <div className="recent-heading">
@@ -775,25 +965,37 @@ function App() {
             </>
           ) : section === "Projects" ? (
             <section className="secondary-view">
-              <div className="breadcrumbs"><span>Projects</span><CaretRight size={12} /><strong>{workspace?.project_name ?? "RO Original Male"}</strong></div>
-              <div className="secondary-title"><div><span className="eyebrow">ACTIVE PROJECT</span><h1>{workspace?.project_name ?? "RO Original Male"}</h1><p>Character specs and source assets in this workspace.</p></div><FolderSimple size={28} weight="fill" /></div>
-              <button className="project-character-row" type="button" onClick={() => setSection("Characters")}>
-                <span className="tree-avatar large"><CharacterArt direction={DIRECTIONS[0]} /></span>
-                <span><strong>{workspace?.character_name ?? "Novice Adventurer 02"}</strong><small>{currentViewCount}/5 base views · 128 × 128</small></span>
-                <CaretRight size={18} />
-              </button>
-              {!workspace && <button className="primary-button create-project-button" type="button" onClick={() => { setModalOpen(true); setFormError(""); }}><Plus size={16} /> Create this project in v0.3.0</button>}
+              <div className="breadcrumbs"><span>Projects</span><CaretRight size={12} /><strong>{workspace?.project_name ?? "All projects"}</strong></div>
+              <div className="secondary-title"><div><span className="eyebrow">PROJECT LIBRARY</span><h1>{workspace?.project_name ?? "Projects"}</h1><p>Select a character to open its saved views, parts, and rig.</p></div><FolderSimple size={28} weight="fill" /></div>
+              <div className="project-list">
+                {projects.map((project) => (
+                  <section className="project-entry" key={project.project_id}>
+                    <h2>{project.name}</h2>
+                    <p>{project.characters.length} {project.characters.length === 1 ? "character" : "characters"}</p>
+                    {project.characters.map((character) => (
+                      <button className="project-character-row" type="button" key={character.character_id} disabled={busy} onClick={() => activateWorkspace({ project_id: project.project_id, project_name: project.name, ...character })}>
+                        <span className="tree-avatar large"><CharacterArt direction={DIRECTIONS[0]} /></span>
+                        <span><strong>{character.name}</strong><small>{workspace?.character_id === character.character_id ? `${currentViewCount}/5 base views` : "Open to view saved assets"} · 128 × 128</small></span>
+                        <CaretRight size={18} />
+                      </button>
+                    ))}
+                    {!project.characters.length && <span className="project-empty">No character specs yet.</span>}
+                  </section>
+                ))}
+                {!projects.length && <p className="project-empty">No projects yet. Create one to start working.</p>}
+              </div>
+              <button className="primary-button create-project-button" type="button" onClick={() => { setModalOpen(true); setFormError(""); }}><Plus size={16} /> New project</button>
             </section>
           ) : (
             <section className="secondary-view">
-              <div className="breadcrumbs"><span>Projects</span><CaretRight size={12} /><span>{workspace?.project_name ?? "RO Original Male"}</span><CaretRight size={12} /><strong>Rigs</strong></div>
-              <div className="secondary-title"><div><span className="eyebrow">RIG WORKSPACE</span><h1>{workspace?.character_name ?? "Novice Adventurer 02"}</h1><p>Build the character rig from the active spec preset.</p></div><GearSix size={30} weight="fill" /></div>
+              <div className="breadcrumbs"><span>Projects</span><CaretRight size={12} /><span>{workspace?.project_name ?? "No project selected"}</span><CaretRight size={12} /><strong>Rigs</strong></div>
+              <div className="secondary-title"><div><span className="eyebrow">RIG WORKSPACE</span><h1>{workspace?.character_name ?? "No character selected"}</h1><p>Build the character rig from the active spec preset.</p></div><GearSix size={30} weight="fill" /></div>
               <div className="rig-card">
                 <div className="rig-card-icon"><Cube size={22} weight="fill" /></div>
-                <div className="rig-card-copy"><strong>Biped chibi · v1</strong><span>{spec?.rig_preset ?? "biped_chibi_v1"} · {validation?.valid ? "base views validated" : "base view validation recommended"}</span></div>
-                <button className="primary-button" type="button" onClick={createRig} disabled={!workspace || busy}><GearSix size={15} weight="fill" /> Create rig</button>
+                <div className="rig-card-copy"><strong>Biped chibi · v1</strong><span>{spec?.rig_preset ?? "biped_chibi_v1"} · {approvedParts.length} approved parts · {rig?.bindings?.length ?? 0} bound</span></div>
+                {!rig ? <button className="primary-button" type="button" onClick={createRig} disabled={!workspace || busy || approvedParts.length === 0}><GearSix size={15} weight="fill" /> Create rig</button> : <button className="primary-button" type="button" onClick={autoBindRig} disabled={busy}><GearSix size={15} weight="fill" /> Auto Bind</button>}
               </div>
-              {!workspace && <button className="primary-button create-project-button" type="button" onClick={() => { setModalOpen(true); setFormError(""); }}><Plus size={16} /> Create a character spec first</button>}
+              {!workspace && <button className="primary-button create-project-button" type="button" onClick={() => { setModalOpen(true); setFormError(""); }}><Plus size={16} /> Create project</button>}
               {notice && <div className="notice" role="status"><span>{notice}</span><IconButton label="Dismiss message" onClick={() => setNotice("")}><X size={15} /></IconButton></div>}
             </section>
           )}
@@ -838,7 +1040,7 @@ function App() {
             </div>
           ) : (
             <div className="inspector-scroll metadata-scroll">
-              <div className="metadata-heading"><span className="eyebrow">SELECTED ASSET</span><h2>{selectedDirection} ({activeDirection.name})</h2><p>Novice Adventurer 02 · idle reference · 128 × 128</p></div>
+              <div className="metadata-heading"><span className="eyebrow">SELECTED ASSET</span><h2>{selectedDirection} ({activeDirection.name})</h2><p>{workspace?.character_name ?? "Source Kit"} · base view · 128 × 128</p></div>
               <CodePanel title="Asset pair" value={{ body: activeDirection.bodyId, head_hair: activeDirection.hairId, direction: selectedDirection, action: "idle", frame: 0 }} onCopy={() => copyText({ body: activeDirection.bodyId, head_hair: activeDirection.hairId, direction: selectedDirection, action: "idle", frame: 0 }, "Asset metadata")} />
               <CodePanel title="Source provenance" value={{ pack: "RO_Original_Male_Adventurer_02", export: "editable generic asset export", generated_by: "Codex imagegen", source_type: "independent-component-atlas", root_anchor: { x: 64, y: 108 }, head_anchor: { x: 64, y: 59 } }} onCopy={() => copyText({ pack: "RO_Original_Male_Adventurer_02", export: "editable generic asset export", generated_by: "Codex imagegen", source_type: "independent-component-atlas", root_anchor: { x: 64, y: 108 }, head_anchor: { x: 64, y: 59 } }, "Source provenance")} />
               {generation && <CodePanel title="Prepared prompt" value={generation.views.find((view) => view.direction === selectedDirection)?.prompt ?? null} emptyLabel="No prompt prepared for this direction." onCopy={() => copyText(generation.views.find((view) => view.direction === selectedDirection)?.prompt ?? "", "Prompt")} />}
@@ -851,12 +1053,12 @@ function App() {
       {modalOpen && (
         <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setModalOpen(false); }}>
           <form className="workspace-modal" onSubmit={createWorkspace}>
-            <div className="modal-heading"><div><span className="eyebrow">CHARACTER-ASSET · V0.3.0</span><h2>Create a workspace</h2><p>Start with the included Novice Adventurer source kit.</p></div><IconButton label="Close" onClick={() => setModalOpen(false)}><X size={18} /></IconButton></div>
+            <div className="modal-heading"><div><span className="eyebrow">CHARACTER-ASSET · V0.3.0</span><h2>Create a project</h2><p>Creates a project and its first character spec from the included source kit.</p></div><IconButton label="Close" onClick={() => setModalOpen(false)}><X size={18} /></IconButton></div>
             <label>Project name<input value={projectName} onChange={(event) => setProjectName(event.target.value)} maxLength={120} autoFocus /></label>
             <label>Character name<input value={characterName} onChange={(event) => setCharacterName(event.target.value)} maxLength={120} /></label>
             <div className="modal-source"><span className="tree-avatar"><CharacterArt direction={DIRECTIONS[0]} /></span><span><strong>Novice Adventurer 02</strong><small>5 directions · 128 × 128 · transparent PNG</small></span><CheckCircle size={17} weight="fill" /></div>
             {formError && <p className="form-error" role="alert">{formError}</p>}
-            <div className="modal-actions"><button className="secondary-button" type="button" onClick={() => setModalOpen(false)}>Cancel</button><button className="primary-button" type="submit" disabled={busy}>{busy ? <CircleNotch className="spin" size={16} /> : <Plus size={16} weight="bold" />}{busy ? "Creating…" : "Create workspace"}</button></div>
+            <div className="modal-actions"><button className="secondary-button" type="button" onClick={() => setModalOpen(false)}>Cancel</button><button className="primary-button" type="submit" disabled={busy}>{busy ? <CircleNotch className="spin" size={16} /> : <Plus size={16} weight="bold" />}{busy ? "Creating…" : "Create project"}</button></div>
           </form>
         </div>
       )}

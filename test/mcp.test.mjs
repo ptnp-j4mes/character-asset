@@ -49,10 +49,21 @@ test('tools/list returns the executable V1 tools in deterministic order with gen
     'character.create_spec',
     'character.get_spec',
     'character.prepare_base_views',
+    'character.begin_image_handoff',
+    'character.get_image_handoff',
     'character.ingest_base_view',
     'character.get_base_views',
     'character.validate_base_views',
-    'rig.create'
+    'parts.auto_segment',
+    'parts.list',
+    'parts.get',
+    'parts.update_mask',
+    'parts.create_manual',
+    'parts.approve',
+    'rig.create',
+    'rig.get',
+    'rig.auto_bind_parts',
+    'rig.validate'
   ]);
   for (const tool of response.result.tools) {
     assert.equal(tool.inputSchema.type, 'object');
@@ -184,4 +195,17 @@ test('MCP tools prepare, ingest, list, and validate ChatGPT Web base views', asy
   }));
   assert.equal(validate.result.structuredContent.validation.valid, false);
   assert.ok(validate.result.structuredContent.validation.errors.some((message) => message.includes('SW')));
+
+  const segmented = await router.dispatch(request(26, 'tools/call', {
+    name: 'parts.auto_segment', arguments: {
+      character_id: 'char_mcp_base_001', source_direction: 'S', part_template: 'biped_chibi_parts_v1', mode: 'hybrid'
+    }
+  }));
+  assert.equal(segmented.result.structuredContent.segmentation.parts_created, 17);
+
+  const parts = await router.dispatch(request(27, 'tools/call', {
+    name: 'parts.list', arguments: { character_id: 'char_mcp_base_001', direction: 'S' }
+  }));
+  assert.equal(parts.result.structuredContent.parts.length, 17);
+  assert.ok(parts.result.structuredContent.parts.every((part) => part.approved === false));
 });

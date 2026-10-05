@@ -1,4 +1,4 @@
-import { mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
@@ -7,33 +7,68 @@ export class JsonStore {
     this.rootDir = rootDir;
   }
 
+  async appendMcpLog(entry) {
+    const path = join(this.rootDir, 'logs', 'mcp.jsonl');
+    await mkdir(dirname(path), { recursive: true });
+    await appendFile(path, `${JSON.stringify(entry)}\n`, 'utf8');
+  }
+
   projectPath(projectId) {
     return join(this.rootDir, 'projects', `${projectId}.json`);
   }
 
+  characterDir(characterId) {
+    return join(this.rootDir, 'characters', characterId);
+  }
+
   specPath(characterId) {
-    return join(this.rootDir, 'characters', characterId, 'spec.json');
+    return join(this.characterDir(characterId), 'spec.json');
   }
 
   rigPath(characterId) {
-    return join(this.rootDir, 'characters', characterId, 'rig.json');
+    return join(this.characterDir(characterId), 'rig.json');
   }
 
   baseViewGenerationPath(characterId, generationId) {
-    return join(this.rootDir, 'characters', characterId, 'base_view_generations', `${generationId}.json`);
+    return join(this.characterDir(characterId), 'base_view_generations', `${generationId}.json`);
   }
 
   baseViewMetaPath(characterId, direction) {
-    return join(this.rootDir, 'characters', characterId, 'base_views', `${direction}.json`);
+    return join(this.characterDir(characterId), 'base_views', `${direction}.json`);
   }
 
   baseViewImagePath(characterId, direction) {
-    return join(this.rootDir, 'characters', characterId, 'base_views', `${direction}.png`);
+    return join(this.characterDir(characterId), 'base_views', `${direction}.png`);
+  }
+
+  handoffPath(characterId, handoffId) {
+    return join(this.characterDir(characterId), 'handoffs', `${handoffId}.json`);
+  }
+
+  partDir(characterId, direction, partName) {
+    return join(this.characterDir(characterId), 'parts', direction, partName);
+  }
+
+  partMetaPath(characterId, direction, partName) {
+    return join(this.partDir(characterId, direction, partName), 'part.json');
+  }
+
+  partArtifactPath(characterId, direction, partName, kind) {
+    return join(this.partDir(characterId, direction, partName), kind === 'mask' ? 'mask.png' : 'cutout.png');
   }
 
   async read(path) {
     try {
       return JSON.parse(await readFile(path, 'utf8'));
+    } catch (error) {
+      if (error?.code === 'ENOENT') return null;
+      throw error;
+    }
+  }
+
+  async readBuffer(path) {
+    try {
+      return await readFile(path);
     } catch (error) {
       if (error?.code === 'ENOENT') return null;
       throw error;
@@ -52,7 +87,6 @@ export class JsonStore {
     }
     return value;
   }
-
 
   async writeBuffer(path, value) {
     await mkdir(dirname(path), { recursive: true });
@@ -74,6 +108,18 @@ export class JsonStore {
     return this.write(this.projectPath(project.project_id), project);
   }
 
+  async listProjects() {
+    const root = join(this.rootDir, 'projects');
+    let names;
+    try {
+      names = await readdir(root);
+    } catch (error) {
+      if (error?.code === 'ENOENT') return [];
+      throw error;
+    }
+    return Promise.all(names.filter((name) => name.endsWith('.json')).map((name) => this.read(join(root, name))));
+  }
+
   getCharacterSpec(characterId) {
     return this.read(this.specPath(characterId));
   }
@@ -90,6 +136,14 @@ export class JsonStore {
     return this.write(this.rigPath(rig.character_id), rig);
   }
 
+  async findRigById(rigId) {
+    for (const characterId of await this.listCharacterIds()) {
+      const rig = await this.getRig(characterId);
+      if (rig?.rig_id === rigId) return rig;
+    }
+    return null;
+  }
+
   getBaseViewGeneration(characterId, generationId) {
     return this.read(this.baseViewGenerationPath(characterId, generationId));
   }
@@ -98,17 +152,47 @@ export class JsonStore {
     return this.write(this.baseViewGenerationPath(generation.character_id, generation.generation_id), generation);
   }
 
+
+  getHandoff(characterId, handoffId) {
+    return this.read(this.handoffPath(characterId, handoffId));
+  }
+
+  saveHandoff(handoff) {
+    return this.write(this.handoffPath(handoff.character_id, handoff.handoff_id), handoff);
+  }
+
+  async listHandoffs(characterId) {
+    const root = join(this.characterDir(characterId), 'handoffs');
+    let names;
+    try { names = await readdir(root); } catch (error) {
+      if (error?.code === 'ENOENT') return [];
+      throw error;
+    }
+    return Promise.all(names.filter((name) => name.endsWith('.json')).map((name) => this.read(join(root, name))));
+  }
+
+  async findHandoff(handoffId) {
+    for (const characterId of await this.listCharacterIds()) {
+      const handoff = await this.getHandoff(characterId, handoffId);
+      if (handoff) return handoff;
+    }
+    return null;
+  }
+
+  async listActiveHandoffs() {
+    const values = [];
+    for (const characterId of await this.listCharacterIds()) {
+      values.push(...await this.listHandoffs(characterId));
+    }
+    return values.filter((value) => value?.status === 'active').sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+  }
+
   getBaseView(characterId, direction) {
     return this.read(this.baseViewMetaPath(characterId, direction));
   }
 
-  async getBaseViewImage(characterId, direction) {
-    try {
-      return await readFile(this.baseViewImagePath(characterId, direction));
-    } catch (error) {
-      if (error?.code === 'ENOENT') return null;
-      throw error;
-    }
+  getBaseViewImage(characterId, direction) {
+    return this.readBuffer(this.baseViewImagePath(characterId, direction));
   }
 
   async saveBaseView(characterId, direction, metadata, bytes) {
@@ -118,7 +202,7 @@ export class JsonStore {
   }
 
   async listBaseViews(characterId) {
-    const dir = join(this.rootDir, 'characters', characterId, 'base_views');
+    const dir = join(this.characterDir(characterId), 'base_views');
     let names;
     try {
       names = await readdir(dir);
@@ -127,11 +211,77 @@ export class JsonStore {
       throw error;
     }
     const views = [];
-    for (const name of names.filter((name) => name.endsWith('.json'))) {
+    for (const name of names.filter((value) => value.endsWith('.json'))) {
       const value = await this.read(join(dir, name));
       if (value) views.push(value);
     }
     return views;
   }
 
+  getPartByName(characterId, direction, partName) {
+    return this.read(this.partMetaPath(characterId, direction, partName));
+  }
+
+  async savePart(part, cutoutBytes, maskBytes) {
+    const { character_id: characterId, direction, name } = part;
+    await this.writeBuffer(this.partArtifactPath(characterId, direction, name, 'cutout'), cutoutBytes);
+    await this.writeBuffer(this.partArtifactPath(characterId, direction, name, 'mask'), maskBytes);
+    await this.write(this.partMetaPath(characterId, direction, name), part);
+    return part;
+  }
+
+  async savePartMetadata(part) {
+    return this.write(this.partMetaPath(part.character_id, part.direction, part.name), part);
+  }
+
+  getPartArtifact(part, kind) {
+    return this.readBuffer(this.partArtifactPath(part.character_id, part.direction, part.name, kind));
+  }
+
+  async listParts(characterId, direction = null) {
+    const root = join(this.characterDir(characterId), 'parts');
+    let directions;
+    try {
+      directions = direction ? [direction] : await readdir(root);
+    } catch (error) {
+      if (error?.code === 'ENOENT') return [];
+      throw error;
+    }
+
+    const parts = [];
+    for (const directionName of directions) {
+      const directionDir = join(root, directionName);
+      let names;
+      try {
+        names = await readdir(directionDir);
+      } catch (error) {
+        if (error?.code === 'ENOENT') continue;
+        throw error;
+      }
+      for (const name of names) {
+        const value = await this.read(join(directionDir, name, 'part.json'));
+        if (value) parts.push(value);
+      }
+    }
+    return parts;
+  }
+
+  async findPart(partId) {
+    for (const characterId of await this.listCharacterIds()) {
+      const parts = await this.listParts(characterId);
+      const part = parts.find((value) => value.part_id === partId);
+      if (part) return part;
+    }
+    return null;
+  }
+
+  async listCharacterIds() {
+    const root = join(this.rootDir, 'characters');
+    try {
+      return await readdir(root);
+    } catch (error) {
+      if (error?.code === 'ENOENT') return [];
+      throw error;
+    }
+  }
 }

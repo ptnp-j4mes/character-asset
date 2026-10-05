@@ -4,9 +4,14 @@ import { CharacterAssetService } from '../domain/service.mjs';
 import { CharacterAssetError } from '../errors.mjs';
 import { MCP_PROTOCOL_VERSION, createCharacterAssetMcpRouter } from '../mcp/router.mjs';
 import { JsonStore } from '../storage/json-store.mjs';
-import { handleRest, readJsonBody, sendJson, sendRestError } from './rest.mjs';
+import { errorStatus, handleRest, readJsonBody, sendJson, sendRestError } from './rest.mjs';
 
 const HEADER_ERROR = -32020;
+const LARGE_MCP_TOOLS = new Set([
+  'character.ingest_base_view',
+  'parts.update_mask',
+  'parts.create_manual'
+]);
 
 function rpcError(id, code, message, data = undefined) {
   return {
@@ -67,24 +72,49 @@ function mcpStatus(payload) {
   return 200;
 }
 
-async function handleMcp(req, res, router) {
+async function handleMcp(req, res, router, store) {
+  let requestBody = null;
+  let rawBody = null;
+  const reply = async (status, responseBody) => {
+    try {
+      await store.appendMcpLog({
+        timestamp: new Date().toISOString(),
+        request: {
+          method: req.method,
+          path: req.url,
+          headers: Object.fromEntries(['mcp-protocol-version', 'mcp-method', 'mcp-name', 'origin'].map((name) => [name, headerValue(req, name) ?? null])),
+          body: requestBody ?? rawBody
+        },
+        response: { status, body: responseBody }
+      });
+    } catch (error) {
+      console.error('Failed to write MCP request log', error);
+    }
+    sendJson(res, status, responseBody);
+  };
+
   if (!isLocalOrigin(headerValue(req, 'origin'))) {
-    sendJson(res, 403, rpcError(null, -32021, 'Cross-origin MCP request rejected'));
+    await reply(403, rpcError(null, -32021, 'Cross-origin MCP request rejected'));
     return;
   }
 
   if (req.method !== 'POST') {
-    sendJson(res, 405, rpcError(null, -32600, 'MCP endpoint accepts POST only'));
+    await reply(405, rpcError(null, -32600, 'MCP endpoint accepts POST only'));
     return;
   }
 
   let message;
   try {
-    const maxBytes = headerValue(req, 'mcp-name') === 'character.ingest_base_view' ? 16 * 1024 * 1024 : 1024 * 1024;
-    message = await readJsonBody(req, { maxBytes });
+    const maxBytes = LARGE_MCP_TOOLS.has(headerValue(req, 'mcp-name')) ? 16 * 1024 * 1024 : 1024 * 1024;
+    message = await readJsonBody(req, { maxBytes, onRawBody: (value) => { rawBody = value; } });
+    requestBody = message;
   } catch (error) {
-    if (error instanceof CharacterAssetError && error.message === 'Request body must be valid JSON') {
-      sendJson(res, 400, rpcError(null, -32700, 'Parse error'));
+    if (error instanceof CharacterAssetError) {
+      if (error.message === 'Request body must be valid JSON') {
+        await reply(400, rpcError(null, -32700, 'Parse error'));
+      } else {
+        await reply(errorStatus(error), { error: error.toJSON() });
+      }
       return;
     }
     throw error;
@@ -92,12 +122,12 @@ async function handleMcp(req, res, router) {
 
   const headerError = validateMcpHeaders(req, message);
   if (headerError) {
-    sendJson(res, 400, headerError);
+    await reply(400, headerError);
     return;
   }
 
   const payload = await router.dispatch(message);
-  sendJson(res, mcpStatus(payload), payload);
+  await reply(mcpStatus(payload), payload);
 }
 
 export function createHttpServer({ dataDir = './data' } = {}) {
@@ -115,7 +145,7 @@ export function createHttpServer({ dataDir = './data' } = {}) {
       }
 
       if (url.pathname === '/mcp') {
-        await handleMcp(req, res, router);
+        await handleMcp(req, res, router, store);
         return;
       }
 

@@ -1329,156 +1329,6 @@
       }
     },
     {
-      "name": "character.generate_base_views",
-      "title": "Generate base views",
-      "description": "Generate canonical 2.5D character base views from a server-side image provider. Planned automation path; not executable in the current ChatGPT Web-first runtime.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "character_id": {
-            "type": "string",
-            "pattern": "^char_[A-Za-z0-9_-]+$"
-          },
-          "views": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "enum": [
-                "S",
-                "SW",
-                "W",
-                "NW",
-                "N",
-                "NE",
-                "E",
-                "SE"
-              ]
-            },
-            "minItems": 1,
-            "uniqueItems": true
-          },
-          "regenerate": {
-            "type": "boolean",
-            "default": false
-          },
-          "seed": {
-            "type": "integer"
-          }
-        },
-        "additionalProperties": false,
-        "required": [
-          "character_id",
-          "views"
-        ]
-      },
-      "outputSchema": {
-        "type": "object",
-        "properties": {
-          "job": {
-            "$ref": "#/$defs/Job"
-          }
-        },
-        "additionalProperties": false,
-        "required": [
-          "job"
-        ],
-        "$defs": {
-          "Job": {
-            "type": "object",
-            "properties": {
-              "job_id": {
-                "type": "string",
-                "pattern": "^job_[A-Za-z0-9_-]+$"
-              },
-              "status": {
-                "type": "string",
-                "enum": [
-                  "queued",
-                  "running",
-                  "completed",
-                  "failed",
-                  "canceled"
-                ]
-              },
-              "progress": {
-                "type": "integer",
-                "minimum": 0,
-                "maximum": 100
-              },
-              "operation": {
-                "type": "string"
-              },
-              "resource_type": {
-                "type": "string"
-              },
-              "resource_id": {
-                "type": "string"
-              },
-              "created_at": {
-                "type": "string",
-                "format": "date-time"
-              },
-              "updated_at": {
-                "type": "string",
-                "format": "date-time"
-              },
-              "logs": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              },
-              "error": {
-                "oneOf": [
-                  {
-                    "$ref": "#/$defs/Error"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "job_id",
-              "status",
-              "operation",
-              "created_at",
-              "updated_at"
-            ]
-          },
-          "Error": {
-            "type": "object",
-            "properties": {
-              "code": {
-                "type": "string"
-              },
-              "message": {
-                "type": "string"
-              },
-              "details": {
-                "type": "object",
-                "properties": {},
-                "additionalProperties": true
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "code",
-              "message"
-            ]
-          }
-        }
-      },
-      "annotations": {
-        "readOnlyHint": false,
-        "destructiveHint": false,
-        "idempotentHint": false,
-        "openWorldHint": false
-      }
-    },
-    {
       "name": "character.prepare_base_views",
       "title": "Prepare base views for ChatGPT Web",
       "description": "Build and persist locked prompts for ChatGPT Web/native image generation without calling an image provider from the server.",
@@ -1542,7 +1392,8 @@
               "generator": {
                 "type": "string",
                 "enum": [
-                  "chatgpt-web"
+                  "chatgpt-web",
+                  "image-bridge"
                 ]
               },
               "prompt_template_version": {
@@ -1639,6 +1490,411 @@
         "readOnlyHint": false,
         "destructiveHint": false,
         "idempotentHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "character.begin_image_handoff",
+      "title": "Begin ChatGPT Web image handoff",
+      "description": "Create a browser-companion handoff session for an existing or newly prepared generation.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "character_id": {
+            "type": "string",
+            "pattern": "^char_[A-Za-z0-9_-]+$"
+          },
+          "generation_id": {
+            "type": "string",
+            "pattern": "^gen_[A-Za-z0-9_-]+$"
+          },
+          "views": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "S",
+                "SW",
+                "W",
+                "NW",
+                "N"
+              ]
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "character_id"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "handoff": {
+            "$ref": "#/$defs/ImageHandoff"
+          },
+          "generation": {
+            "$ref": "#/$defs/BaseViewGeneration"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "handoff",
+          "generation"
+        ],
+        "$defs": {
+          "BaseViewGeneration": {
+            "type": "object",
+            "properties": {
+              "generation_id": {
+                "type": "string",
+                "pattern": "^gen_[A-Za-z0-9_-]+$"
+              },
+              "character_id": {
+                "type": "string",
+                "pattern": "^char_[A-Za-z0-9_-]+$"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "prepared"
+                ]
+              },
+              "generator": {
+                "type": "string",
+                "enum": [
+                  "chatgpt-web",
+                  "image-bridge"
+                ]
+              },
+              "prompt_template_version": {
+                "type": "string"
+              },
+              "character_lock": {
+                "type": "object",
+                "properties": {
+                  "spec_id": {
+                    "type": "string"
+                  },
+                  "asset_version": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "style_profile": {
+                    "type": "string"
+                  },
+                  "proportion_profile": {
+                    "type": "string"
+                  },
+                  "visual": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": true
+                  },
+                  "output_constraints": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": true
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "spec_id",
+                  "asset_version",
+                  "name",
+                  "style_profile",
+                  "proportion_profile",
+                  "visual",
+                  "output_constraints"
+                ]
+              },
+              "views": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "direction": {
+                      "type": "string",
+                      "enum": [
+                        "S",
+                        "SW",
+                        "W",
+                        "NW",
+                        "N"
+                      ]
+                    },
+                    "prompt": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "direction",
+                    "prompt"
+                  ]
+                }
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "generation_id",
+              "character_id",
+              "status",
+              "generator",
+              "prompt_template_version",
+              "character_lock",
+              "views",
+              "created_at"
+            ]
+          },
+          "ImageHandoff": {
+            "type": "object",
+            "properties": {
+              "handoff_id": {
+                "type": "string",
+                "pattern": "^handoff_[A-Za-z0-9_-]+$"
+              },
+              "character_id": {
+                "type": "string",
+                "pattern": "^char_[A-Za-z0-9_-]+$"
+              },
+              "generation_id": {
+                "type": "string",
+                "pattern": "^gen_[A-Za-z0-9_-]+$"
+              },
+              "source": {
+                "type": "string",
+                "enum": [
+                  "chatgpt-web-companion"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "active",
+                  "completed"
+                ]
+              },
+              "requested_views": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "S",
+                    "SW",
+                    "W",
+                    "NW",
+                    "N"
+                  ]
+                },
+                "minItems": 1,
+                "uniqueItems": true
+              },
+              "received_views": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "S",
+                    "SW",
+                    "W",
+                    "NW",
+                    "N"
+                  ]
+                },
+                "uniqueItems": true
+              },
+              "next_direction": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "S",
+                      "SW",
+                      "W",
+                      "NW",
+                      "N"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updated_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "handoff_id",
+              "character_id",
+              "generation_id",
+              "source",
+              "status",
+              "requested_views",
+              "received_views",
+              "next_direction",
+              "created_at",
+              "updated_at"
+            ]
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "character.get_image_handoff",
+      "title": "Get image handoff",
+      "description": "Read current browser-companion handoff state and the next expected direction.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "handoff_id": {
+            "type": "string",
+            "pattern": "^handoff_[A-Za-z0-9_-]+$"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "handoff_id"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "handoff": {
+            "$ref": "#/$defs/ImageHandoff"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "handoff"
+        ],
+        "$defs": {
+          "ImageHandoff": {
+            "type": "object",
+            "properties": {
+              "handoff_id": {
+                "type": "string",
+                "pattern": "^handoff_[A-Za-z0-9_-]+$"
+              },
+              "character_id": {
+                "type": "string",
+                "pattern": "^char_[A-Za-z0-9_-]+$"
+              },
+              "generation_id": {
+                "type": "string",
+                "pattern": "^gen_[A-Za-z0-9_-]+$"
+              },
+              "source": {
+                "type": "string",
+                "enum": [
+                  "chatgpt-web-companion"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "active",
+                  "completed"
+                ]
+              },
+              "requested_views": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "S",
+                    "SW",
+                    "W",
+                    "NW",
+                    "N"
+                  ]
+                },
+                "minItems": 1,
+                "uniqueItems": true
+              },
+              "received_views": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "S",
+                    "SW",
+                    "W",
+                    "NW",
+                    "N"
+                  ]
+                },
+                "uniqueItems": true
+              },
+              "next_direction": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "S",
+                      "SW",
+                      "W",
+                      "NW",
+                      "N"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updated_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "handoff_id",
+              "character_id",
+              "generation_id",
+              "source",
+              "status",
+              "requested_views",
+              "received_views",
+              "next_direction",
+              "created_at",
+              "updated_at"
+            ]
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false
       }
     },
@@ -2000,6 +2256,9 @@
                 "items": {
                   "type": "string"
                 }
+              },
+              "next_tool": {
+                "type": "string"
               }
             },
             "additionalProperties": false,
@@ -2334,7 +2593,7 @@
     {
       "name": "parts.auto_segment",
       "title": "Auto segment parts",
-      "description": "Segment a base view into riggable body parts.",
+      "description": "Create deterministic review-only draft semantic masks and cutouts from one canonical base view.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2354,7 +2613,7 @@
           },
           "part_template": {
             "type": "string",
-            "default": "biped_chibi_v1"
+            "default": "biped_chibi_parts_v1"
           },
           "mode": {
             "type": "string",
@@ -2375,45 +2634,292 @@
       "outputSchema": {
         "type": "object",
         "properties": {
-          "job": {
-            "$ref": "#/$defs/Job"
+          "segmentation": {
+            "$ref": "#/$defs/PartSegmentation"
           }
         },
         "additionalProperties": false,
         "required": [
-          "job"
+          "segmentation"
         ],
         "$defs": {
-          "Job": {
+          "PartSegmentation": {
             "type": "object",
             "properties": {
-              "job_id": {
+              "character_id": {
                 "type": "string",
-                "pattern": "^job_[A-Za-z0-9_-]+$"
+                "pattern": "^char_[A-Za-z0-9_-]+$"
+              },
+              "direction": {
+                "type": "string",
+                "enum": [
+                  "S",
+                  "SW",
+                  "W",
+                  "NW",
+                  "N"
+                ]
+              },
+              "template": {
+                "type": "string"
+              },
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "auto",
+                  "hybrid"
+                ]
+              },
+              "parts_created": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "draft_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "approved_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "review_required": {
+                "type": "boolean"
+              },
+              "warnings": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "parts": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/PartAsset"
+                }
+              },
+              "next_tool": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "character_id",
+              "direction",
+              "template",
+              "mode",
+              "parts_created",
+              "draft_count",
+              "approved_count",
+              "review_required",
+              "warnings",
+              "parts",
+              "next_tool"
+            ]
+          },
+          "PartAsset": {
+            "type": "object",
+            "properties": {
+              "part_id": {
+                "type": "string",
+                "pattern": "^part_[A-Za-z0-9_-]+$"
+              },
+              "character_id": {
+                "type": "string",
+                "pattern": "^char_[A-Za-z0-9_-]+$"
+              },
+              "direction": {
+                "type": "string",
+                "enum": [
+                  "S",
+                  "SW",
+                  "W",
+                  "NW",
+                  "N",
+                  "NE",
+                  "E",
+                  "SE"
+                ]
+              },
+              "name": {
+                "type": "string"
+              },
+              "template": {
+                "type": "string"
+              },
+              "category": {
+                "type": "string",
+                "enum": [
+                  "body_part",
+                  "hair",
+                  "equipment",
+                  "shadow",
+                  "fx",
+                  "custom"
+                ]
+              },
+              "image_asset_id": {
+                "type": "string"
+              },
+              "mask_asset_id": {
+                "type": "string"
               },
               "status": {
                 "type": "string",
                 "enum": [
-                  "queued",
-                  "running",
-                  "completed",
+                  "draft",
+                  "processing",
+                  "ready",
+                  "approved",
                   "failed",
-                  "canceled"
+                  "archived"
                 ]
               },
-              "progress": {
-                "type": "integer",
+              "approved": {
+                "type": "boolean",
+                "default": false
+              },
+              "confidence": {
+                "type": "number",
                 "minimum": 0,
-                "maximum": 100
+                "maximum": 1
               },
-              "operation": {
+              "source": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "base_view",
+                      "manual_mask"
+                    ]
+                  },
+                  "direction": {
+                    "type": "string",
+                    "enum": [
+                      "S",
+                      "SW",
+                      "W",
+                      "NW",
+                      "N"
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "type",
+                  "direction"
+                ]
+              },
+              "bounds": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "y": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "width": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "height": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y",
+                  "width",
+                  "height"
+                ]
+              },
+              "pivot": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y"
+                ]
+              },
+              "bone_hint": {
                 "type": "string"
               },
-              "resource_type": {
-                "type": "string"
+              "default_draw_layer": {
+                "type": "integer"
               },
-              "resource_id": {
-                "type": "string"
+              "occlusion": {
+                "type": "object",
+                "properties": {
+                  "needs_completion": {
+                    "type": "boolean"
+                  },
+                  "reason": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "needs_completion",
+                  "reason"
+                ]
+              },
+              "authoring": {
+                "type": "object",
+                "properties": {
+                  "source_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "source_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "runtime_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "runtime_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "authoring_recommended_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "authoring_recommended_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "source_width",
+                  "source_height",
+                  "runtime_width",
+                  "runtime_height",
+                  "authoring_recommended_width",
+                  "authoring_recommended_height"
+                ]
               },
               "created_at": {
                 "type": "string",
@@ -2422,52 +2928,30 @@
               "updated_at": {
                 "type": "string",
                 "format": "date-time"
-              },
-              "logs": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              },
-              "error": {
-                "oneOf": [
-                  {
-                    "$ref": "#/$defs/Error"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
               }
             },
             "additionalProperties": false,
             "required": [
-              "job_id",
+              "part_id",
+              "character_id",
+              "direction",
+              "name",
+              "template",
+              "category",
+              "image_asset_id",
+              "mask_asset_id",
               "status",
-              "operation",
+              "approved",
+              "confidence",
+              "source",
+              "bounds",
+              "pivot",
+              "bone_hint",
+              "default_draw_layer",
+              "occlusion",
+              "authoring",
               "created_at",
               "updated_at"
-            ]
-          },
-          "Error": {
-            "type": "object",
-            "properties": {
-              "code": {
-                "type": "string"
-              },
-              "message": {
-                "type": "string"
-              },
-              "details": {
-                "type": "object",
-                "properties": {},
-                "additionalProperties": true
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "code",
-              "message"
             ]
           }
         }
@@ -2532,10 +3016,12 @@
             "type": "object",
             "properties": {
               "part_id": {
-                "type": "string"
+                "type": "string",
+                "pattern": "^part_[A-Za-z0-9_-]+$"
               },
               "character_id": {
-                "type": "string"
+                "type": "string",
+                "pattern": "^char_[A-Za-z0-9_-]+$"
               },
               "direction": {
                 "type": "string",
@@ -2551,6 +3037,9 @@
                 ]
               },
               "name": {
+                "type": "string"
+              },
+              "template": {
                 "type": "string"
               },
               "category": {
@@ -2570,6 +3059,81 @@
               "mask_asset_id": {
                 "type": "string"
               },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "draft",
+                  "processing",
+                  "ready",
+                  "approved",
+                  "failed",
+                  "archived"
+                ]
+              },
+              "approved": {
+                "type": "boolean",
+                "default": false
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "source": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "base_view",
+                      "manual_mask"
+                    ]
+                  },
+                  "direction": {
+                    "type": "string",
+                    "enum": [
+                      "S",
+                      "SW",
+                      "W",
+                      "NW",
+                      "N"
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "type",
+                  "direction"
+                ]
+              },
+              "bounds": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "y": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "width": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "height": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y",
+                  "width",
+                  "height"
+                ]
+              },
               "pivot": {
                 "type": "object",
                 "properties": {
@@ -2586,23 +3150,80 @@
                   "y"
                 ]
               },
+              "bone_hint": {
+                "type": "string"
+              },
               "default_draw_layer": {
                 "type": "integer"
               },
-              "approved": {
-                "type": "boolean",
-                "default": false
-              },
-              "status": {
-                "type": "string",
-                "enum": [
-                  "draft",
-                  "processing",
-                  "ready",
-                  "approved",
-                  "failed",
-                  "archived"
+              "occlusion": {
+                "type": "object",
+                "properties": {
+                  "needs_completion": {
+                    "type": "boolean"
+                  },
+                  "reason": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "needs_completion",
+                  "reason"
                 ]
+              },
+              "authoring": {
+                "type": "object",
+                "properties": {
+                  "source_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "source_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "runtime_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "runtime_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "authoring_recommended_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "authoring_recommended_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "source_width",
+                  "source_height",
+                  "runtime_width",
+                  "runtime_height",
+                  "authoring_recommended_width",
+                  "authoring_recommended_height"
+                ]
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updated_at": {
+                "type": "string",
+                "format": "date-time"
               }
             },
             "additionalProperties": false,
@@ -2611,10 +3232,22 @@
               "character_id",
               "direction",
               "name",
+              "template",
               "category",
               "image_asset_id",
+              "mask_asset_id",
+              "status",
+              "approved",
+              "confidence",
+              "source",
+              "bounds",
               "pivot",
-              "status"
+              "bone_hint",
+              "default_draw_layer",
+              "occlusion",
+              "authoring",
+              "created_at",
+              "updated_at"
             ]
           }
         }
@@ -2629,12 +3262,13 @@
     {
       "name": "parts.get",
       "title": "Get part",
-      "description": "Read one segmented part.",
+      "description": "Read one segmented part and its local artifact endpoints.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "part_id": {
-            "type": "string"
+            "type": "string",
+            "pattern": "^part_[A-Za-z0-9_-]+$"
           }
         },
         "additionalProperties": false,
@@ -2647,21 +3281,31 @@
         "properties": {
           "part": {
             "$ref": "#/$defs/PartAsset"
+          },
+          "cutout_url": {
+            "type": "string"
+          },
+          "mask_url": {
+            "type": "string"
           }
         },
         "additionalProperties": false,
         "required": [
-          "part"
+          "part",
+          "cutout_url",
+          "mask_url"
         ],
         "$defs": {
           "PartAsset": {
             "type": "object",
             "properties": {
               "part_id": {
-                "type": "string"
+                "type": "string",
+                "pattern": "^part_[A-Za-z0-9_-]+$"
               },
               "character_id": {
-                "type": "string"
+                "type": "string",
+                "pattern": "^char_[A-Za-z0-9_-]+$"
               },
               "direction": {
                 "type": "string",
@@ -2677,6 +3321,9 @@
                 ]
               },
               "name": {
+                "type": "string"
+              },
+              "template": {
                 "type": "string"
               },
               "category": {
@@ -2696,6 +3343,81 @@
               "mask_asset_id": {
                 "type": "string"
               },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "draft",
+                  "processing",
+                  "ready",
+                  "approved",
+                  "failed",
+                  "archived"
+                ]
+              },
+              "approved": {
+                "type": "boolean",
+                "default": false
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "source": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "base_view",
+                      "manual_mask"
+                    ]
+                  },
+                  "direction": {
+                    "type": "string",
+                    "enum": [
+                      "S",
+                      "SW",
+                      "W",
+                      "NW",
+                      "N"
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "type",
+                  "direction"
+                ]
+              },
+              "bounds": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "y": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "width": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "height": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y",
+                  "width",
+                  "height"
+                ]
+              },
               "pivot": {
                 "type": "object",
                 "properties": {
@@ -2712,23 +3434,80 @@
                   "y"
                 ]
               },
+              "bone_hint": {
+                "type": "string"
+              },
               "default_draw_layer": {
                 "type": "integer"
               },
-              "approved": {
-                "type": "boolean",
-                "default": false
-              },
-              "status": {
-                "type": "string",
-                "enum": [
-                  "draft",
-                  "processing",
-                  "ready",
-                  "approved",
-                  "failed",
-                  "archived"
+              "occlusion": {
+                "type": "object",
+                "properties": {
+                  "needs_completion": {
+                    "type": "boolean"
+                  },
+                  "reason": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "needs_completion",
+                  "reason"
                 ]
+              },
+              "authoring": {
+                "type": "object",
+                "properties": {
+                  "source_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "source_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "runtime_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "runtime_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "authoring_recommended_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "authoring_recommended_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "source_width",
+                  "source_height",
+                  "runtime_width",
+                  "runtime_height",
+                  "authoring_recommended_width",
+                  "authoring_recommended_height"
+                ]
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updated_at": {
+                "type": "string",
+                "format": "date-time"
               }
             },
             "additionalProperties": false,
@@ -2737,10 +3516,22 @@
               "character_id",
               "direction",
               "name",
+              "template",
               "category",
               "image_asset_id",
+              "mask_asset_id",
+              "status",
+              "approved",
+              "confidence",
+              "source",
+              "bounds",
               "pivot",
-              "status"
+              "bone_hint",
+              "default_draw_layer",
+              "occlusion",
+              "authoring",
+              "created_at",
+              "updated_at"
             ]
           }
         }
@@ -2755,57 +3546,23 @@
     {
       "name": "parts.update_mask",
       "title": "Update part mask",
-      "description": "Replace the segmentation mask for a part.",
+      "description": "Replace one part mask PNG, regenerate its cutout, and reset approval.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "part_id": {
-            "type": "string"
+            "type": "string",
+            "pattern": "^part_[A-Za-z0-9_-]+$"
           },
-          "mask": {
-            "type": "object",
-            "properties": {
-              "format": {
-                "type": "string",
-                "enum": [
-                  "polygon",
-                  "rle",
-                  "asset_ref"
-                ]
-              },
-              "polygon": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "x": {
-                      "type": "number"
-                    },
-                    "y": {
-                      "type": "number"
-                    }
-                  },
-                  "additionalProperties": false,
-                  "required": [
-                    "x",
-                    "y"
-                  ]
-                }
-              },
-              "mask_asset_id": {
-                "type": "string"
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "format"
-            ]
+          "mask_data_url": {
+            "type": "string",
+            "pattern": "^data:image/png;base64,"
           }
         },
         "additionalProperties": false,
         "required": [
           "part_id",
-          "mask"
+          "mask_data_url"
         ]
       },
       "outputSchema": {
@@ -2824,10 +3581,12 @@
             "type": "object",
             "properties": {
               "part_id": {
-                "type": "string"
+                "type": "string",
+                "pattern": "^part_[A-Za-z0-9_-]+$"
               },
               "character_id": {
-                "type": "string"
+                "type": "string",
+                "pattern": "^char_[A-Za-z0-9_-]+$"
               },
               "direction": {
                 "type": "string",
@@ -2843,6 +3602,9 @@
                 ]
               },
               "name": {
+                "type": "string"
+              },
+              "template": {
                 "type": "string"
               },
               "category": {
@@ -2862,6 +3624,81 @@
               "mask_asset_id": {
                 "type": "string"
               },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "draft",
+                  "processing",
+                  "ready",
+                  "approved",
+                  "failed",
+                  "archived"
+                ]
+              },
+              "approved": {
+                "type": "boolean",
+                "default": false
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "source": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "base_view",
+                      "manual_mask"
+                    ]
+                  },
+                  "direction": {
+                    "type": "string",
+                    "enum": [
+                      "S",
+                      "SW",
+                      "W",
+                      "NW",
+                      "N"
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "type",
+                  "direction"
+                ]
+              },
+              "bounds": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "y": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "width": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "height": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y",
+                  "width",
+                  "height"
+                ]
+              },
               "pivot": {
                 "type": "object",
                 "properties": {
@@ -2878,23 +3715,80 @@
                   "y"
                 ]
               },
+              "bone_hint": {
+                "type": "string"
+              },
               "default_draw_layer": {
                 "type": "integer"
               },
-              "approved": {
-                "type": "boolean",
-                "default": false
-              },
-              "status": {
-                "type": "string",
-                "enum": [
-                  "draft",
-                  "processing",
-                  "ready",
-                  "approved",
-                  "failed",
-                  "archived"
+              "occlusion": {
+                "type": "object",
+                "properties": {
+                  "needs_completion": {
+                    "type": "boolean"
+                  },
+                  "reason": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "needs_completion",
+                  "reason"
                 ]
+              },
+              "authoring": {
+                "type": "object",
+                "properties": {
+                  "source_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "source_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "runtime_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "runtime_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "authoring_recommended_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "authoring_recommended_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "source_width",
+                  "source_height",
+                  "runtime_width",
+                  "runtime_height",
+                  "authoring_recommended_width",
+                  "authoring_recommended_height"
+                ]
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updated_at": {
+                "type": "string",
+                "format": "date-time"
               }
             },
             "additionalProperties": false,
@@ -2903,10 +3797,22 @@
               "character_id",
               "direction",
               "name",
+              "template",
               "category",
               "image_asset_id",
+              "mask_asset_id",
+              "status",
+              "approved",
+              "confidence",
+              "source",
+              "bounds",
               "pivot",
-              "status"
+              "bone_hint",
+              "default_draw_layer",
+              "occlusion",
+              "authoring",
+              "created_at",
+              "updated_at"
             ]
           }
         }
@@ -2921,12 +3827,13 @@
     {
       "name": "parts.approve",
       "title": "Approve part",
-      "description": "Mark a segmented part as approved for rig binding.",
+      "description": "Mark a reviewed part as approved for rig binding.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "part_id": {
-            "type": "string"
+            "type": "string",
+            "pattern": "^part_[A-Za-z0-9_-]+$"
           },
           "approved": {
             "type": "boolean",
@@ -2954,10 +3861,12 @@
             "type": "object",
             "properties": {
               "part_id": {
-                "type": "string"
+                "type": "string",
+                "pattern": "^part_[A-Za-z0-9_-]+$"
               },
               "character_id": {
-                "type": "string"
+                "type": "string",
+                "pattern": "^char_[A-Za-z0-9_-]+$"
               },
               "direction": {
                 "type": "string",
@@ -2973,6 +3882,9 @@
                 ]
               },
               "name": {
+                "type": "string"
+              },
+              "template": {
                 "type": "string"
               },
               "category": {
@@ -2992,6 +3904,81 @@
               "mask_asset_id": {
                 "type": "string"
               },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "draft",
+                  "processing",
+                  "ready",
+                  "approved",
+                  "failed",
+                  "archived"
+                ]
+              },
+              "approved": {
+                "type": "boolean",
+                "default": false
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "source": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "base_view",
+                      "manual_mask"
+                    ]
+                  },
+                  "direction": {
+                    "type": "string",
+                    "enum": [
+                      "S",
+                      "SW",
+                      "W",
+                      "NW",
+                      "N"
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "type",
+                  "direction"
+                ]
+              },
+              "bounds": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "y": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "width": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "height": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y",
+                  "width",
+                  "height"
+                ]
+              },
               "pivot": {
                 "type": "object",
                 "properties": {
@@ -3008,23 +3995,80 @@
                   "y"
                 ]
               },
+              "bone_hint": {
+                "type": "string"
+              },
               "default_draw_layer": {
                 "type": "integer"
               },
-              "approved": {
-                "type": "boolean",
-                "default": false
-              },
-              "status": {
-                "type": "string",
-                "enum": [
-                  "draft",
-                  "processing",
-                  "ready",
-                  "approved",
-                  "failed",
-                  "archived"
+              "occlusion": {
+                "type": "object",
+                "properties": {
+                  "needs_completion": {
+                    "type": "boolean"
+                  },
+                  "reason": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "needs_completion",
+                  "reason"
                 ]
+              },
+              "authoring": {
+                "type": "object",
+                "properties": {
+                  "source_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "source_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "runtime_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "runtime_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "authoring_recommended_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "authoring_recommended_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "source_width",
+                  "source_height",
+                  "runtime_width",
+                  "runtime_height",
+                  "authoring_recommended_width",
+                  "authoring_recommended_height"
+                ]
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updated_at": {
+                "type": "string",
+                "format": "date-time"
               }
             },
             "additionalProperties": false,
@@ -3033,10 +4077,22 @@
               "character_id",
               "direction",
               "name",
+              "template",
               "category",
               "image_asset_id",
+              "mask_asset_id",
+              "status",
+              "approved",
+              "confidence",
+              "source",
+              "bounds",
               "pivot",
-              "status"
+              "bone_hint",
+              "default_draw_layer",
+              "occlusion",
+              "authoring",
+              "created_at",
+              "updated_at"
             ]
           }
         }
@@ -3092,7 +4148,7 @@
     {
       "name": "parts.create_manual",
       "title": "Create manual part",
-      "description": "Create a riggable part from an existing cutout or explicit region.",
+      "description": "Create or explicitly replace a part using a PNG mask against the canonical base view.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -3107,14 +4163,15 @@
               "SW",
               "W",
               "NW",
-              "N",
-              "NE",
-              "E",
-              "SE"
+              "N"
             ]
           },
           "name": {
             "type": "string"
+          },
+          "mask_data_url": {
+            "type": "string",
+            "pattern": "^data:image/png;base64,"
           },
           "category": {
             "type": "string",
@@ -3126,9 +4183,6 @@
               "fx",
               "custom"
             ]
-          },
-          "image_asset_id": {
-            "type": "string"
           },
           "pivot": {
             "type": "object",
@@ -3145,6 +4199,13 @@
               "x",
               "y"
             ]
+          },
+          "bone_hint": {
+            "type": "string"
+          },
+          "replace": {
+            "type": "boolean",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -3152,9 +4213,7 @@
           "character_id",
           "direction",
           "name",
-          "category",
-          "image_asset_id",
-          "pivot"
+          "mask_data_url"
         ]
       },
       "outputSchema": {
@@ -3173,10 +4232,12 @@
             "type": "object",
             "properties": {
               "part_id": {
-                "type": "string"
+                "type": "string",
+                "pattern": "^part_[A-Za-z0-9_-]+$"
               },
               "character_id": {
-                "type": "string"
+                "type": "string",
+                "pattern": "^char_[A-Za-z0-9_-]+$"
               },
               "direction": {
                 "type": "string",
@@ -3192,6 +4253,9 @@
                 ]
               },
               "name": {
+                "type": "string"
+              },
+              "template": {
                 "type": "string"
               },
               "category": {
@@ -3211,6 +4275,81 @@
               "mask_asset_id": {
                 "type": "string"
               },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "draft",
+                  "processing",
+                  "ready",
+                  "approved",
+                  "failed",
+                  "archived"
+                ]
+              },
+              "approved": {
+                "type": "boolean",
+                "default": false
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "source": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "base_view",
+                      "manual_mask"
+                    ]
+                  },
+                  "direction": {
+                    "type": "string",
+                    "enum": [
+                      "S",
+                      "SW",
+                      "W",
+                      "NW",
+                      "N"
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "type",
+                  "direction"
+                ]
+              },
+              "bounds": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "y": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "width": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "height": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y",
+                  "width",
+                  "height"
+                ]
+              },
               "pivot": {
                 "type": "object",
                 "properties": {
@@ -3227,23 +4366,80 @@
                   "y"
                 ]
               },
+              "bone_hint": {
+                "type": "string"
+              },
               "default_draw_layer": {
                 "type": "integer"
               },
-              "approved": {
-                "type": "boolean",
-                "default": false
-              },
-              "status": {
-                "type": "string",
-                "enum": [
-                  "draft",
-                  "processing",
-                  "ready",
-                  "approved",
-                  "failed",
-                  "archived"
+              "occlusion": {
+                "type": "object",
+                "properties": {
+                  "needs_completion": {
+                    "type": "boolean"
+                  },
+                  "reason": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "needs_completion",
+                  "reason"
                 ]
+              },
+              "authoring": {
+                "type": "object",
+                "properties": {
+                  "source_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "source_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "runtime_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "runtime_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "authoring_recommended_width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "authoring_recommended_height": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "source_width",
+                  "source_height",
+                  "runtime_width",
+                  "runtime_height",
+                  "authoring_recommended_width",
+                  "authoring_recommended_height"
+                ]
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updated_at": {
+                "type": "string",
+                "format": "date-time"
               }
             },
             "additionalProperties": false,
@@ -3252,10 +4448,22 @@
               "character_id",
               "direction",
               "name",
+              "template",
               "category",
               "image_asset_id",
+              "mask_asset_id",
+              "status",
+              "approved",
+              "confidence",
+              "source",
+              "bounds",
               "pivot",
-              "status"
+              "bone_hint",
+              "default_draw_layer",
+              "occlusion",
+              "authoring",
+              "created_at",
+              "updated_at"
             ]
           }
         }
@@ -3363,117 +4571,6 @@
               "version"
             ]
           },
-          "Socket": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "bone_name": {
-                "type": "string"
-              },
-              "slot_type": {
-                "type": "string",
-                "enum": [
-                  "head",
-                  "weapon",
-                  "shield",
-                  "back",
-                  "fx",
-                  "custom"
-                ]
-              },
-              "offset": {
-                "type": "object",
-                "properties": {
-                  "x": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "y": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "rotation": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "scale_x": {
-                    "type": "number",
-                    "default": 1
-                  },
-                  "scale_y": {
-                    "type": "number",
-                    "default": 1
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "bone_name",
-              "slot_type",
-              "offset"
-            ]
-          },
-          "Bone": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "parent": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "position": {
-                "type": "object",
-                "properties": {
-                  "x": {
-                    "type": "number"
-                  },
-                  "y": {
-                    "type": "number"
-                  }
-                },
-                "additionalProperties": false,
-                "required": [
-                  "x",
-                  "y"
-                ]
-              },
-              "length": {
-                "type": "number",
-                "minimum": 0
-              },
-              "rotation": {
-                "type": "number",
-                "default": 0
-              },
-              "rotation_limits": {
-                "type": "object",
-                "properties": {
-                  "min": {
-                    "type": "number"
-                  },
-                  "max": {
-                    "type": "number"
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "parent",
-              "position"
-            ]
-          },
           "Binding": {
             "type": "object",
             "properties": {
@@ -3539,6 +4636,117 @@
               "part_id",
               "bone_name",
               "pivot",
+              "offset"
+            ]
+          },
+          "Bone": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "parent": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "position": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y"
+                ]
+              },
+              "length": {
+                "type": "number",
+                "minimum": 0
+              },
+              "rotation": {
+                "type": "number",
+                "default": 0
+              },
+              "rotation_limits": {
+                "type": "object",
+                "properties": {
+                  "min": {
+                    "type": "number"
+                  },
+                  "max": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "parent",
+              "position"
+            ]
+          },
+          "Socket": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "bone_name": {
+                "type": "string"
+              },
+              "slot_type": {
+                "type": "string",
+                "enum": [
+                  "head",
+                  "weapon",
+                  "shield",
+                  "back",
+                  "fx",
+                  "custom"
+                ]
+              },
+              "offset": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "y": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "rotation": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "scale_x": {
+                    "type": "number",
+                    "default": 1
+                  },
+                  "scale_y": {
+                    "type": "number",
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "bone_name",
+              "slot_type",
               "offset"
             ]
           }
@@ -3639,117 +4847,6 @@
               "version"
             ]
           },
-          "Socket": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "bone_name": {
-                "type": "string"
-              },
-              "slot_type": {
-                "type": "string",
-                "enum": [
-                  "head",
-                  "weapon",
-                  "shield",
-                  "back",
-                  "fx",
-                  "custom"
-                ]
-              },
-              "offset": {
-                "type": "object",
-                "properties": {
-                  "x": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "y": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "rotation": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "scale_x": {
-                    "type": "number",
-                    "default": 1
-                  },
-                  "scale_y": {
-                    "type": "number",
-                    "default": 1
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "bone_name",
-              "slot_type",
-              "offset"
-            ]
-          },
-          "Bone": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "parent": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "position": {
-                "type": "object",
-                "properties": {
-                  "x": {
-                    "type": "number"
-                  },
-                  "y": {
-                    "type": "number"
-                  }
-                },
-                "additionalProperties": false,
-                "required": [
-                  "x",
-                  "y"
-                ]
-              },
-              "length": {
-                "type": "number",
-                "minimum": 0
-              },
-              "rotation": {
-                "type": "number",
-                "default": 0
-              },
-              "rotation_limits": {
-                "type": "object",
-                "properties": {
-                  "min": {
-                    "type": "number"
-                  },
-                  "max": {
-                    "type": "number"
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "parent",
-              "position"
-            ]
-          },
           "Binding": {
             "type": "object",
             "properties": {
@@ -3815,6 +4912,117 @@
               "part_id",
               "bone_name",
               "pivot",
+              "offset"
+            ]
+          },
+          "Bone": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "parent": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "position": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y"
+                ]
+              },
+              "length": {
+                "type": "number",
+                "minimum": 0
+              },
+              "rotation": {
+                "type": "number",
+                "default": 0
+              },
+              "rotation_limits": {
+                "type": "object",
+                "properties": {
+                  "min": {
+                    "type": "number"
+                  },
+                  "max": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "parent",
+              "position"
+            ]
+          },
+          "Socket": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "bone_name": {
+                "type": "string"
+              },
+              "slot_type": {
+                "type": "string",
+                "enum": [
+                  "head",
+                  "weapon",
+                  "shield",
+                  "back",
+                  "fx",
+                  "custom"
+                ]
+              },
+              "offset": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "y": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "rotation": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "scale_x": {
+                    "type": "number",
+                    "default": 1
+                  },
+                  "scale_y": {
+                    "type": "number",
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "bone_name",
+              "slot_type",
               "offset"
             ]
           }
@@ -4064,117 +5272,6 @@
               "version"
             ]
           },
-          "Socket": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "bone_name": {
-                "type": "string"
-              },
-              "slot_type": {
-                "type": "string",
-                "enum": [
-                  "head",
-                  "weapon",
-                  "shield",
-                  "back",
-                  "fx",
-                  "custom"
-                ]
-              },
-              "offset": {
-                "type": "object",
-                "properties": {
-                  "x": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "y": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "rotation": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "scale_x": {
-                    "type": "number",
-                    "default": 1
-                  },
-                  "scale_y": {
-                    "type": "number",
-                    "default": 1
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "bone_name",
-              "slot_type",
-              "offset"
-            ]
-          },
-          "Bone": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "parent": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "position": {
-                "type": "object",
-                "properties": {
-                  "x": {
-                    "type": "number"
-                  },
-                  "y": {
-                    "type": "number"
-                  }
-                },
-                "additionalProperties": false,
-                "required": [
-                  "x",
-                  "y"
-                ]
-              },
-              "length": {
-                "type": "number",
-                "minimum": 0
-              },
-              "rotation": {
-                "type": "number",
-                "default": 0
-              },
-              "rotation_limits": {
-                "type": "object",
-                "properties": {
-                  "min": {
-                    "type": "number"
-                  },
-                  "max": {
-                    "type": "number"
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "parent",
-              "position"
-            ]
-          },
           "Binding": {
             "type": "object",
             "properties": {
@@ -4242,6 +5339,117 @@
               "pivot",
               "offset"
             ]
+          },
+          "Bone": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "parent": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "position": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y"
+                ]
+              },
+              "length": {
+                "type": "number",
+                "minimum": 0
+              },
+              "rotation": {
+                "type": "number",
+                "default": 0
+              },
+              "rotation_limits": {
+                "type": "object",
+                "properties": {
+                  "min": {
+                    "type": "number"
+                  },
+                  "max": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "parent",
+              "position"
+            ]
+          },
+          "Socket": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "bone_name": {
+                "type": "string"
+              },
+              "slot_type": {
+                "type": "string",
+                "enum": [
+                  "head",
+                  "weapon",
+                  "shield",
+                  "back",
+                  "fx",
+                  "custom"
+                ]
+              },
+              "offset": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "y": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "rotation": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "scale_x": {
+                    "type": "number",
+                    "default": 1
+                  },
+                  "scale_y": {
+                    "type": "number",
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "bone_name",
+              "slot_type",
+              "offset"
+            ]
           }
         }
       },
@@ -4255,10 +5463,14 @@
     {
       "name": "rig.auto_bind_parts",
       "title": "Auto bind parts",
-      "description": "Bind approved character parts to matching preset bones.",
+      "description": "Bind approved character parts to matching preset bones; draft parts are skipped and reported.",
       "inputSchema": {
         "type": "object",
         "properties": {
+          "character_id": {
+            "type": "string",
+            "pattern": "^char_[A-Za-z0-9_-]+$"
+          },
           "rig_id": {
             "type": "string",
             "pattern": "^rig_[A-Za-z0-9_-]+$"
@@ -4269,8 +5481,17 @@
           }
         },
         "additionalProperties": false,
-        "required": [
-          "rig_id"
+        "anyOf": [
+          {
+            "required": [
+              "character_id"
+            ]
+          },
+          {
+            "required": [
+              "rig_id"
+            ]
+          }
         ]
       },
       "outputSchema": {
@@ -4290,13 +5511,27 @@
             "items": {
               "type": "string"
             }
+          },
+          "skipped_part_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "unmatched_bones": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "additionalProperties": false,
         "required": [
           "rig",
           "bound_part_ids",
-          "unbound_part_ids"
+          "unbound_part_ids",
+          "skipped_part_ids",
+          "unmatched_bones"
         ],
         "$defs": {
           "Rig": {
@@ -4358,117 +5593,6 @@
               "version"
             ]
           },
-          "Socket": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "bone_name": {
-                "type": "string"
-              },
-              "slot_type": {
-                "type": "string",
-                "enum": [
-                  "head",
-                  "weapon",
-                  "shield",
-                  "back",
-                  "fx",
-                  "custom"
-                ]
-              },
-              "offset": {
-                "type": "object",
-                "properties": {
-                  "x": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "y": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "rotation": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "scale_x": {
-                    "type": "number",
-                    "default": 1
-                  },
-                  "scale_y": {
-                    "type": "number",
-                    "default": 1
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "bone_name",
-              "slot_type",
-              "offset"
-            ]
-          },
-          "Bone": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "parent": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "position": {
-                "type": "object",
-                "properties": {
-                  "x": {
-                    "type": "number"
-                  },
-                  "y": {
-                    "type": "number"
-                  }
-                },
-                "additionalProperties": false,
-                "required": [
-                  "x",
-                  "y"
-                ]
-              },
-              "length": {
-                "type": "number",
-                "minimum": 0
-              },
-              "rotation": {
-                "type": "number",
-                "default": 0
-              },
-              "rotation_limits": {
-                "type": "object",
-                "properties": {
-                  "min": {
-                    "type": "number"
-                  },
-                  "max": {
-                    "type": "number"
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "parent",
-              "position"
-            ]
-          },
           "Binding": {
             "type": "object",
             "properties": {
@@ -4534,6 +5658,117 @@
               "part_id",
               "bone_name",
               "pivot",
+              "offset"
+            ]
+          },
+          "Bone": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "parent": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "position": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y"
+                ]
+              },
+              "length": {
+                "type": "number",
+                "minimum": 0
+              },
+              "rotation": {
+                "type": "number",
+                "default": 0
+              },
+              "rotation_limits": {
+                "type": "object",
+                "properties": {
+                  "min": {
+                    "type": "number"
+                  },
+                  "max": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "parent",
+              "position"
+            ]
+          },
+          "Socket": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "bone_name": {
+                "type": "string"
+              },
+              "slot_type": {
+                "type": "string",
+                "enum": [
+                  "head",
+                  "weapon",
+                  "shield",
+                  "back",
+                  "fx",
+                  "custom"
+                ]
+              },
+              "offset": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "y": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "rotation": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "scale_x": {
+                    "type": "number",
+                    "default": 1
+                  },
+                  "scale_y": {
+                    "type": "number",
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "bone_name",
+              "slot_type",
               "offset"
             ]
           }
@@ -4692,117 +5927,6 @@
               "version"
             ]
           },
-          "Socket": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "bone_name": {
-                "type": "string"
-              },
-              "slot_type": {
-                "type": "string",
-                "enum": [
-                  "head",
-                  "weapon",
-                  "shield",
-                  "back",
-                  "fx",
-                  "custom"
-                ]
-              },
-              "offset": {
-                "type": "object",
-                "properties": {
-                  "x": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "y": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "rotation": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "scale_x": {
-                    "type": "number",
-                    "default": 1
-                  },
-                  "scale_y": {
-                    "type": "number",
-                    "default": 1
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "bone_name",
-              "slot_type",
-              "offset"
-            ]
-          },
-          "Bone": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "parent": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "position": {
-                "type": "object",
-                "properties": {
-                  "x": {
-                    "type": "number"
-                  },
-                  "y": {
-                    "type": "number"
-                  }
-                },
-                "additionalProperties": false,
-                "required": [
-                  "x",
-                  "y"
-                ]
-              },
-              "length": {
-                "type": "number",
-                "minimum": 0
-              },
-              "rotation": {
-                "type": "number",
-                "default": 0
-              },
-              "rotation_limits": {
-                "type": "object",
-                "properties": {
-                  "min": {
-                    "type": "number"
-                  },
-                  "max": {
-                    "type": "number"
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "parent",
-              "position"
-            ]
-          },
           "Binding": {
             "type": "object",
             "properties": {
@@ -4868,6 +5992,117 @@
               "part_id",
               "bone_name",
               "pivot",
+              "offset"
+            ]
+          },
+          "Bone": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "parent": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "position": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y"
+                ]
+              },
+              "length": {
+                "type": "number",
+                "minimum": 0
+              },
+              "rotation": {
+                "type": "number",
+                "default": 0
+              },
+              "rotation_limits": {
+                "type": "object",
+                "properties": {
+                  "min": {
+                    "type": "number"
+                  },
+                  "max": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "parent",
+              "position"
+            ]
+          },
+          "Socket": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "bone_name": {
+                "type": "string"
+              },
+              "slot_type": {
+                "type": "string",
+                "enum": [
+                  "head",
+                  "weapon",
+                  "shield",
+                  "back",
+                  "fx",
+                  "custom"
+                ]
+              },
+              "offset": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "y": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "rotation": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "scale_x": {
+                    "type": "number",
+                    "default": 1
+                  },
+                  "scale_y": {
+                    "type": "number",
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "bone_name",
+              "slot_type",
               "offset"
             ]
           }
@@ -5014,117 +6249,6 @@
               "version"
             ]
           },
-          "Socket": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "bone_name": {
-                "type": "string"
-              },
-              "slot_type": {
-                "type": "string",
-                "enum": [
-                  "head",
-                  "weapon",
-                  "shield",
-                  "back",
-                  "fx",
-                  "custom"
-                ]
-              },
-              "offset": {
-                "type": "object",
-                "properties": {
-                  "x": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "y": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "rotation": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "scale_x": {
-                    "type": "number",
-                    "default": 1
-                  },
-                  "scale_y": {
-                    "type": "number",
-                    "default": 1
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "bone_name",
-              "slot_type",
-              "offset"
-            ]
-          },
-          "Bone": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "parent": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "position": {
-                "type": "object",
-                "properties": {
-                  "x": {
-                    "type": "number"
-                  },
-                  "y": {
-                    "type": "number"
-                  }
-                },
-                "additionalProperties": false,
-                "required": [
-                  "x",
-                  "y"
-                ]
-              },
-              "length": {
-                "type": "number",
-                "minimum": 0
-              },
-              "rotation": {
-                "type": "number",
-                "default": 0
-              },
-              "rotation_limits": {
-                "type": "object",
-                "properties": {
-                  "min": {
-                    "type": "number"
-                  },
-                  "max": {
-                    "type": "number"
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "parent",
-              "position"
-            ]
-          },
           "Binding": {
             "type": "object",
             "properties": {
@@ -5190,6 +6314,117 @@
               "part_id",
               "bone_name",
               "pivot",
+              "offset"
+            ]
+          },
+          "Bone": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "parent": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "position": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y"
+                ]
+              },
+              "length": {
+                "type": "number",
+                "minimum": 0
+              },
+              "rotation": {
+                "type": "number",
+                "default": 0
+              },
+              "rotation_limits": {
+                "type": "object",
+                "properties": {
+                  "min": {
+                    "type": "number"
+                  },
+                  "max": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "parent",
+              "position"
+            ]
+          },
+          "Socket": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "bone_name": {
+                "type": "string"
+              },
+              "slot_type": {
+                "type": "string",
+                "enum": [
+                  "head",
+                  "weapon",
+                  "shield",
+                  "back",
+                  "fx",
+                  "custom"
+                ]
+              },
+              "offset": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "y": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "rotation": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "scale_x": {
+                    "type": "number",
+                    "default": 1
+                  },
+                  "scale_y": {
+                    "type": "number",
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "bone_name",
+              "slot_type",
               "offset"
             ]
           }
@@ -5341,117 +6576,6 @@
               "version"
             ]
           },
-          "Socket": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "bone_name": {
-                "type": "string"
-              },
-              "slot_type": {
-                "type": "string",
-                "enum": [
-                  "head",
-                  "weapon",
-                  "shield",
-                  "back",
-                  "fx",
-                  "custom"
-                ]
-              },
-              "offset": {
-                "type": "object",
-                "properties": {
-                  "x": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "y": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "rotation": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "scale_x": {
-                    "type": "number",
-                    "default": 1
-                  },
-                  "scale_y": {
-                    "type": "number",
-                    "default": 1
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "bone_name",
-              "slot_type",
-              "offset"
-            ]
-          },
-          "Bone": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "parent": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "position": {
-                "type": "object",
-                "properties": {
-                  "x": {
-                    "type": "number"
-                  },
-                  "y": {
-                    "type": "number"
-                  }
-                },
-                "additionalProperties": false,
-                "required": [
-                  "x",
-                  "y"
-                ]
-              },
-              "length": {
-                "type": "number",
-                "minimum": 0
-              },
-              "rotation": {
-                "type": "number",
-                "default": 0
-              },
-              "rotation_limits": {
-                "type": "object",
-                "properties": {
-                  "min": {
-                    "type": "number"
-                  },
-                  "max": {
-                    "type": "number"
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "parent",
-              "position"
-            ]
-          },
           "Binding": {
             "type": "object",
             "properties": {
@@ -5519,6 +6643,117 @@
               "pivot",
               "offset"
             ]
+          },
+          "Bone": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "parent": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "position": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y"
+                ]
+              },
+              "length": {
+                "type": "number",
+                "minimum": 0
+              },
+              "rotation": {
+                "type": "number",
+                "default": 0
+              },
+              "rotation_limits": {
+                "type": "object",
+                "properties": {
+                  "min": {
+                    "type": "number"
+                  },
+                  "max": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "parent",
+              "position"
+            ]
+          },
+          "Socket": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "bone_name": {
+                "type": "string"
+              },
+              "slot_type": {
+                "type": "string",
+                "enum": [
+                  "head",
+                  "weapon",
+                  "shield",
+                  "back",
+                  "fx",
+                  "custom"
+                ]
+              },
+              "offset": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "y": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "rotation": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "scale_x": {
+                    "type": "number",
+                    "default": 1
+                  },
+                  "scale_y": {
+                    "type": "number",
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "bone_name",
+              "slot_type",
+              "offset"
+            ]
           }
         }
       },
@@ -5532,18 +6767,31 @@
     {
       "name": "rig.validate",
       "title": "Validate rig",
-      "description": "Validate bone hierarchy, bindings and sockets.",
+      "description": "Validate bone hierarchy, bindings, sockets, and approved-part coverage.",
       "inputSchema": {
         "type": "object",
         "properties": {
+          "character_id": {
+            "type": "string",
+            "pattern": "^char_[A-Za-z0-9_-]+$"
+          },
           "rig_id": {
             "type": "string",
             "pattern": "^rig_[A-Za-z0-9_-]+$"
           }
         },
         "additionalProperties": false,
-        "required": [
-          "rig_id"
+        "anyOf": [
+          {
+            "required": [
+              "character_id"
+            ]
+          },
+          {
+            "required": [
+              "rig_id"
+            ]
+          }
         ]
       },
       "outputSchema": {
@@ -6770,28 +8018,6 @@
               "status"
             ]
           },
-          "AnimationEvent": {
-            "type": "object",
-            "properties": {
-              "time": {
-                "type": "number",
-                "minimum": 0
-              },
-              "event_name": {
-                "type": "string"
-              },
-              "payload": {
-                "type": "object",
-                "properties": {},
-                "additionalProperties": true
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "time",
-              "event_name"
-            ]
-          },
           "AnimationTrack": {
             "type": "object",
             "properties": {
@@ -6848,6 +8074,28 @@
             "additionalProperties": false,
             "required": [
               "time"
+            ]
+          },
+          "AnimationEvent": {
+            "type": "object",
+            "properties": {
+              "time": {
+                "type": "number",
+                "minimum": 0
+              },
+              "event_name": {
+                "type": "string"
+              },
+              "payload": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "time",
+              "event_name"
             ]
           }
         }
@@ -7005,28 +8253,6 @@
               "status"
             ]
           },
-          "AnimationEvent": {
-            "type": "object",
-            "properties": {
-              "time": {
-                "type": "number",
-                "minimum": 0
-              },
-              "event_name": {
-                "type": "string"
-              },
-              "payload": {
-                "type": "object",
-                "properties": {},
-                "additionalProperties": true
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "time",
-              "event_name"
-            ]
-          },
           "AnimationTrack": {
             "type": "object",
             "properties": {
@@ -7083,6 +8309,28 @@
             "additionalProperties": false,
             "required": [
               "time"
+            ]
+          },
+          "AnimationEvent": {
+            "type": "object",
+            "properties": {
+              "time": {
+                "type": "number",
+                "minimum": 0
+              },
+              "event_name": {
+                "type": "string"
+              },
+              "payload": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "time",
+              "event_name"
             ]
           }
         }
@@ -7211,28 +8459,6 @@
               "status"
             ]
           },
-          "AnimationEvent": {
-            "type": "object",
-            "properties": {
-              "time": {
-                "type": "number",
-                "minimum": 0
-              },
-              "event_name": {
-                "type": "string"
-              },
-              "payload": {
-                "type": "object",
-                "properties": {},
-                "additionalProperties": true
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "time",
-              "event_name"
-            ]
-          },
           "AnimationTrack": {
             "type": "object",
             "properties": {
@@ -7289,6 +8515,28 @@
             "additionalProperties": false,
             "required": [
               "time"
+            ]
+          },
+          "AnimationEvent": {
+            "type": "object",
+            "properties": {
+              "time": {
+                "type": "number",
+                "minimum": 0
+              },
+              "event_name": {
+                "type": "string"
+              },
+              "payload": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "time",
+              "event_name"
             ]
           }
         }
@@ -7469,28 +8717,6 @@
               "status"
             ]
           },
-          "AnimationEvent": {
-            "type": "object",
-            "properties": {
-              "time": {
-                "type": "number",
-                "minimum": 0
-              },
-              "event_name": {
-                "type": "string"
-              },
-              "payload": {
-                "type": "object",
-                "properties": {},
-                "additionalProperties": true
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "time",
-              "event_name"
-            ]
-          },
           "AnimationTrack": {
             "type": "object",
             "properties": {
@@ -7547,6 +8773,28 @@
             "additionalProperties": false,
             "required": [
               "time"
+            ]
+          },
+          "AnimationEvent": {
+            "type": "object",
+            "properties": {
+              "time": {
+                "type": "number",
+                "minimum": 0
+              },
+              "event_name": {
+                "type": "string"
+              },
+              "payload": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "time",
+              "event_name"
             ]
           }
         }
@@ -7706,28 +8954,6 @@
               "status"
             ]
           },
-          "AnimationEvent": {
-            "type": "object",
-            "properties": {
-              "time": {
-                "type": "number",
-                "minimum": 0
-              },
-              "event_name": {
-                "type": "string"
-              },
-              "payload": {
-                "type": "object",
-                "properties": {},
-                "additionalProperties": true
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "time",
-              "event_name"
-            ]
-          },
           "AnimationTrack": {
             "type": "object",
             "properties": {
@@ -7784,6 +9010,28 @@
             "additionalProperties": false,
             "required": [
               "time"
+            ]
+          },
+          "AnimationEvent": {
+            "type": "object",
+            "properties": {
+              "time": {
+                "type": "number",
+                "minimum": 0
+              },
+              "event_name": {
+                "type": "string"
+              },
+              "payload": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "time",
+              "event_name"
             ]
           }
         }
@@ -7931,28 +9179,6 @@
               "status"
             ]
           },
-          "AnimationEvent": {
-            "type": "object",
-            "properties": {
-              "time": {
-                "type": "number",
-                "minimum": 0
-              },
-              "event_name": {
-                "type": "string"
-              },
-              "payload": {
-                "type": "object",
-                "properties": {},
-                "additionalProperties": true
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "time",
-              "event_name"
-            ]
-          },
           "AnimationTrack": {
             "type": "object",
             "properties": {
@@ -8009,6 +9235,28 @@
             "additionalProperties": false,
             "required": [
               "time"
+            ]
+          },
+          "AnimationEvent": {
+            "type": "object",
+            "properties": {
+              "time": {
+                "type": "number",
+                "minimum": 0
+              },
+              "event_name": {
+                "type": "string"
+              },
+              "payload": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "time",
+              "event_name"
             ]
           }
         }
@@ -8200,28 +9448,6 @@
               "status"
             ]
           },
-          "AnimationEvent": {
-            "type": "object",
-            "properties": {
-              "time": {
-                "type": "number",
-                "minimum": 0
-              },
-              "event_name": {
-                "type": "string"
-              },
-              "payload": {
-                "type": "object",
-                "properties": {},
-                "additionalProperties": true
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "time",
-              "event_name"
-            ]
-          },
           "AnimationTrack": {
             "type": "object",
             "properties": {
@@ -8278,6 +9504,28 @@
             "additionalProperties": false,
             "required": [
               "time"
+            ]
+          },
+          "AnimationEvent": {
+            "type": "object",
+            "properties": {
+              "time": {
+                "type": "number",
+                "minimum": 0
+              },
+              "event_name": {
+                "type": "string"
+              },
+              "payload": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "time",
+              "event_name"
             ]
           }
         }

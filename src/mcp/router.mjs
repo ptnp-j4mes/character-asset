@@ -10,10 +10,21 @@ const handlers = {
   'character.create_spec': async (service, args) => ({ spec: await service.createCharacterSpec(args) }),
   'character.get_spec': async (service, args) => ({ spec: await service.getCharacterSpec(args?.character_id) }),
   'character.prepare_base_views': async (service, args) => ({ generation: await service.prepareBaseViews(args) }),
+  'character.begin_image_handoff': async (service, args) => service.beginImageHandoff(args),
+  'character.get_image_handoff': async (service, args) => ({ handoff: await service.getImageHandoff(args?.handoff_id) }),
   'character.ingest_base_view': async (service, args) => ({ view: await service.ingestBaseView(args) }),
   'character.get_base_views': async (service, args) => service.getBaseViews(args?.character_id),
   'character.validate_base_views': async (service, args) => ({ validation: await service.validateBaseViews(args) }),
-  'rig.create': async (service, args) => ({ rig: await service.createRig(args) })
+  'parts.auto_segment': async (service, args) => ({ segmentation: await service.autoSegmentParts(args) }),
+  'parts.list': async (service, args) => service.listParts(args),
+  'parts.get': async (service, args) => service.getPart(args?.part_id),
+  'parts.update_mask': async (service, args) => ({ part: await service.updatePartMask(args) }),
+  'parts.create_manual': async (service, args) => ({ part: await service.createManualPart(args) }),
+  'parts.approve': async (service, args) => ({ part: await service.approvePart(args) }),
+  'rig.create': async (service, args) => ({ rig: await service.createRig(args) }),
+  'rig.get': async (service, args) => ({ rig: await service.getRig(args?.character_id) }),
+  'rig.auto_bind_parts': async (service, args) => service.autoBindParts(args),
+  'rig.validate': async (service, args) => service.validateRig(args)
 };
 
 function resultMeta() {
@@ -71,7 +82,7 @@ export function createCharacterAssetMcpRouter(service) {
           resultType: 'complete',
           supportedVersions: [MCP_PROTOCOL_VERSION],
           capabilities: { tools: { listChanged: false } },
-          instructions: 'Use Character-Asset tools to create structured 2.5D character specs and rigs. For images, prepare locked base-view prompts, generate with ChatGPT Web/native image generation, then ingest PNG results back into Character-Asset.',
+          instructions: 'Use Character-Asset tools to create structured 2.5D character specs, prepare ChatGPT Web image handoffs, validate base references, extract and approve semantic parts, then create and bind rigs.',
           ttlMs: 300000,
           cacheScope: 'public'
         });

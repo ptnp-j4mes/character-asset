@@ -8,9 +8,9 @@
     "jsonSchema": "2020-12"
   },
   "counts": {
-    "mcpTools": 64,
-    "openapiPaths": 55,
-    "sharedSchemas": 13
+    "mcpTools": 65,
+    "openapiPaths": 59,
+    "sharedSchemas": 15
   },
   "files": {
     "openapi": "openapi/character-asset.openapi.json",
@@ -25,8 +25,10 @@
       "direction-profile.schema.json",
       "equipment-item.schema.json",
       "export-package.schema.json",
+      "image-handoff.schema.json",
       "job.schema.json",
       "part-asset.schema.json",
+      "part-segmentation.schema.json",
       "project.schema.json",
       "qc-result.schema.json",
       "rig.schema.json"
@@ -44,10 +46,21 @@
       "character.create_spec",
       "character.get_spec",
       "character.prepare_base_views",
+      "character.begin_image_handoff",
+      "character.get_image_handoff",
       "character.ingest_base_view",
       "character.get_base_views",
       "character.validate_base_views",
-      "rig.create"
+      "parts.auto_segment",
+      "parts.list",
+      "parts.get",
+      "parts.update_mask",
+      "parts.create_manual",
+      "parts.approve",
+      "rig.create",
+      "rig.get",
+      "rig.auto_bind_parts",
+      "rig.validate"
     ]
   }
 }

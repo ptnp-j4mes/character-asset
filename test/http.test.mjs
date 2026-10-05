@@ -79,6 +79,17 @@ test('REST routes share the domain service for project, spec, get, and rig', asy
   assert.equal(specResponse.status, 201);
   assert.equal(specResponse.body.spec.character_id, 'char_rest_001');
 
+  const projectsResponse = await json(await fetch(`${base}/projects`));
+  assert.equal(projectsResponse.status, 200);
+  assert.deepEqual(projectsResponse.body.projects, [{
+    ...project,
+    characters: [{
+      character_id: 'char_rest_001',
+      name: 'REST Novice',
+      updated_at: specResponse.body.spec.updated_at
+    }]
+  }]);
+
   const getResponse = await json(await fetch(`${base}/characters/char_rest_001/spec`));
   assert.equal(getResponse.status, 200);
   assert.deepEqual(getResponse.body.spec, specResponse.body.spec);
@@ -126,10 +137,21 @@ test('MCP endpoint serves discover, tools/list, and tools/call over stateless HT
     'character.create_spec',
     'character.get_spec',
     'character.prepare_base_views',
+    'character.begin_image_handoff',
+    'character.get_image_handoff',
     'character.ingest_base_view',
     'character.get_base_views',
     'character.validate_base_views',
-    'rig.create'
+    'parts.auto_segment',
+    'parts.list',
+    'parts.get',
+    'parts.update_mask',
+    'parts.create_manual',
+    'parts.approve',
+    'rig.create',
+    'rig.get',
+    'rig.auto_bind_parts',
+    'rig.validate'
   ]);
 
   const call = await json(await mcpFetch(base, mcpBody(3, 'tools/call', {
@@ -211,4 +233,20 @@ test('REST supports prepare -> ingest -> get -> validate for ChatGPT Web base vi
   }));
   assert.equal(validated.status, 200);
   assert.equal(validated.body.validation.valid, false);
+
+  const segmented = await json(await fetch(`${base}/characters/char_http_base_001/parts:auto-segment`, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({
+      source_direction: 'S',
+      part_template: 'biped_chibi_parts_v1',
+      mode: 'hybrid'
+    })
+  }));
+  assert.equal(segmented.status, 201);
+  assert.equal(segmented.body.segmentation.parts_created, 17);
+  assert.equal(segmented.body.segmentation.review_required, true);
+
+  const parts = await json(await fetch(`${base}/characters/char_http_base_001/parts?direction=S`));
+  assert.equal(parts.status, 200);
+  assert.equal(parts.body.parts.length, 17);
+  assert.ok(parts.body.parts.every((part) => part.status === 'draft'));
 });

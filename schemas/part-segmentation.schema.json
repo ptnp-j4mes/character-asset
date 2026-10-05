@@ -1,62 +1,77 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://character-asset.local/schemas/equipment-item.schema.json",
-  "title": "EquipmentItem",
+  "$id": "https://character-asset.local/schemas/part-segmentation.schema.json",
+  "title": "PartSegmentation",
   "type": "object",
   "properties": {
-    "item_id": {
-      "type": "string"
+    "character_id": {
+      "type": "string",
+      "pattern": "^char_[A-Za-z0-9_-]+$"
     },
-    "name": {
-      "type": "string"
-    },
-    "slot": {
+    "direction": {
       "type": "string",
       "enum": [
-        "head",
-        "weapon",
-        "shield",
-        "back",
-        "fx",
-        "custom"
+        "S",
+        "SW",
+        "W",
+        "NW",
+        "N"
       ]
     },
-    "image_asset_id": {
+    "template": {
       "type": "string"
     },
-    "style_profile": {
-      "type": "string"
+    "mode": {
+      "type": "string",
+      "enum": [
+        "auto",
+        "hybrid"
+      ]
     },
-    "direction_assets": {
-      "type": "object",
-      "properties": {},
-      "additionalProperties": {
+    "parts_created": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "draft_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "approved_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "review_required": {
+      "type": "boolean"
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
         "type": "string"
       }
     },
-    "metadata": {
-      "type": "object",
-      "properties": {},
-      "additionalProperties": true
+    "parts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/PartAsset"
+      }
     },
-    "status": {
-      "type": "string",
-      "enum": [
-        "draft",
-        "processing",
-        "ready",
-        "approved",
-        "failed",
-        "archived"
-      ]
+    "next_tool": {
+      "type": "string"
     }
   },
   "additionalProperties": false,
   "required": [
-    "item_id",
-    "name",
-    "slot",
-    "status"
+    "character_id",
+    "direction",
+    "template",
+    "mode",
+    "parts_created",
+    "draft_count",
+    "approved_count",
+    "review_required",
+    "warnings",
+    "parts",
+    "next_tool"
   ],
   "$defs": {
     "Error": {
@@ -897,79 +912,6 @@
         "updated_at"
       ]
     },
-    "PartSegmentation": {
-      "type": "object",
-      "properties": {
-        "character_id": {
-          "type": "string",
-          "pattern": "^char_[A-Za-z0-9_-]+$"
-        },
-        "direction": {
-          "type": "string",
-          "enum": [
-            "S",
-            "SW",
-            "W",
-            "NW",
-            "N"
-          ]
-        },
-        "template": {
-          "type": "string"
-        },
-        "mode": {
-          "type": "string",
-          "enum": [
-            "auto",
-            "hybrid"
-          ]
-        },
-        "parts_created": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "draft_count": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "approved_count": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "review_required": {
-          "type": "boolean"
-        },
-        "warnings": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "parts": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/PartAsset"
-          }
-        },
-        "next_tool": {
-          "type": "string"
-        }
-      },
-      "additionalProperties": false,
-      "required": [
-        "character_id",
-        "direction",
-        "template",
-        "mode",
-        "parts_created",
-        "draft_count",
-        "approved_count",
-        "review_required",
-        "warnings",
-        "parts",
-        "next_tool"
-      ]
-    },
     "Bone": {
       "type": "object",
       "properties": {
@@ -1509,6 +1451,64 @@
         "events",
         "directions",
         "version",
+        "status"
+      ]
+    },
+    "EquipmentItem": {
+      "type": "object",
+      "properties": {
+        "item_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "slot": {
+          "type": "string",
+          "enum": [
+            "head",
+            "weapon",
+            "shield",
+            "back",
+            "fx",
+            "custom"
+          ]
+        },
+        "image_asset_id": {
+          "type": "string"
+        },
+        "style_profile": {
+          "type": "string"
+        },
+        "direction_assets": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "metadata": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "draft",
+            "processing",
+            "ready",
+            "approved",
+            "failed",
+            "archived"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "item_id",
+        "name",
+        "slot",
         "status"
       ]
     },
