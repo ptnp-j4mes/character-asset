@@ -9,8 +9,8 @@
   },
   "counts": {
     "mcpTools": 64,
-    "openapiPaths": 55,
-    "sharedSchemas": 13
+    "openapiPaths": 58,
+    "sharedSchemas": 14
   },
   "files": {
     "openapi": "openapi/character-asset.openapi.json",
@@ -27,6 +27,7 @@
       "export-package.schema.json",
       "job.schema.json",
       "part-asset.schema.json",
+      "part-segmentation.schema.json",
       "project.schema.json",
       "qc-result.schema.json",
       "rig.schema.json"
@@ -43,11 +44,21 @@
       "project.create",
       "character.create_spec",
       "character.get_spec",
+      "character.generate_base_views",
       "character.prepare_base_views",
       "character.ingest_base_view",
       "character.get_base_views",
       "character.validate_base_views",
-      "rig.create"
+      "parts.auto_segment",
+      "parts.list",
+      "parts.get",
+      "parts.update_mask",
+      "parts.create_manual",
+      "parts.approve",
+      "rig.create",
+      "rig.get",
+      "rig.auto_bind_parts",
+      "rig.validate"
     ]
   }
 }

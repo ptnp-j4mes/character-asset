@@ -326,3 +326,38 @@ button:focus-visible, input:focus-visible { outline: 2px solid #368bff; outline-
   .rig-card { align-items: flex-start; flex-wrap: wrap; }
   .rig-card .primary-button { margin-left: 56px; }
 }
+
+.stage-switcher { display: inline-flex; gap: 3px; margin: -10px 0 14px; padding: 3px; border: 1px solid #dce3eb; border-radius: 6px; background: #f6f8fa; }
+.stage-switcher button { min-height: 30px; display: inline-flex; align-items: center; gap: 7px; padding: 0 13px; border: 0; border-radius: 4px; color: #68788d; background: transparent; font-size: 10.5px; font-weight: 650; cursor: pointer; }
+.stage-switcher button span { min-width: 28px; padding: 2px 5px; border-radius: 9px; color: #75859a; background: #e8edf3; font-size: 8.5px; text-align: center; }
+.stage-switcher button.is-active { color: #126edc; background: #fff; box-shadow: 0 1px 3px #19355118; }
+.stage-switcher button:disabled { opacity: .45; cursor: not-allowed; }
+.parts-cta { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 14px; padding: 12px 14px; border: 1px solid #cfe0f3; border-radius: 6px; background: #f6faff; }
+.parts-cta > div { display: flex; flex-direction: column; gap: 4px; }
+.parts-cta strong { color: #27415f; font-size: 11px; }
+.parts-cta span { color: #718198; font-size: 10px; }
+.parts-workspace { border-top: 1px solid #e1e7ee; padding-top: 15px; }
+.parts-toolbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 14px; }
+.parts-toolbar h2 { margin: 5px 0 4px; color: #20334a; font-size: 18px; }
+.parts-toolbar p { margin: 0; color: #75859a; font-size: 10px; }
+.parts-layout { display: grid; grid-template-columns: minmax(220px, 34%) minmax(0, 1fr); gap: 15px; }
+.parts-reference .preview-stage.compact { height: 310px; }
+.resolution-warning { display: flex; align-items: flex-start; gap: 7px; margin-top: 8px; padding: 9px; border: 1px solid #ead4b5; border-radius: 5px; color: #8a5b17; background: #fff9ef; font-size: 9.5px; line-height: 1.45; }
+.resolution-warning svg { flex: 0 0 auto; margin-top: 1px; }
+.parts-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-content: start; }
+.part-card { min-width: 0; display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; align-items: center; gap: 9px; min-height: 70px; padding: 7px; border: 1px solid #dde4ec; border-radius: 6px; background: #fff; }
+.part-card.is-approved { border-color: #b9dfd2; background: #f6fcf9; }
+.part-preview { width: 54px; height: 54px; overflow: hidden; border: 1px solid #e1e6ec; border-radius: 4px; background-color: #f4f5f7; background-image: repeating-conic-gradient(#e8ebef 0% 25%, #f7f8fa 0% 50%); background-size: 10px 10px; }
+.part-preview img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+.part-card-copy { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.part-card-copy strong { overflow: hidden; color: #2b3d53; font-size: 10.5px; text-overflow: ellipsis; }
+.part-card-copy span, .part-card-copy small { overflow: hidden; color: #8190a1; font-size: 8.5px; text-overflow: ellipsis; white-space: nowrap; }
+.part-approved { display: inline-flex; align-items: center; gap: 4px; color: #14805e; font-size: 9px; font-weight: 650; }
+.compact-button { min-height: 27px; padding: 0 8px; font-size: 9px; }
+.parts-empty { grid-column: 1 / -1; min-height: 220px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border: 1px dashed #cad4df; border-radius: 6px; color: #8492a2; text-align: center; }
+.parts-empty strong { color: #53667d; font-size: 11px; }
+.parts-empty span { max-width: 280px; font-size: 9.5px; line-height: 1.45; }
+.inline-rig-stage { padding-top: 5px; }
+.rig-stage-note { margin-top: 8px; color: #7b899b; font-size: 10px; }
+@media (max-width: 1280px) { .parts-grid { grid-template-columns: 1fr; } }
+@media (max-width: 720px) { .parts-layout { grid-template-columns: 1fr; } .parts-grid { grid-template-columns: 1fr; } .stage-switcher { width: 100%; } .stage-switcher button { flex: 1; justify-content: center; } }

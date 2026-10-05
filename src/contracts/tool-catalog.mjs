@@ -4,11 +4,21 @@ const CORE_TOOL_NAMES = [
   'project.create',
   'character.create_spec',
   'character.get_spec',
+  'character.generate_base_views',
   'character.prepare_base_views',
   'character.ingest_base_view',
   'character.get_base_views',
   'character.validate_base_views',
-  'rig.create'
+  'parts.auto_segment',
+  'parts.list',
+  'parts.get',
+  'parts.update_mask',
+  'parts.create_manual',
+  'parts.approve',
+  'rig.create',
+  'rig.get',
+  'rig.auto_bind_parts',
+  'rig.validate'
 ];
 
 const catalogUrl = new URL('../../mcp/character-asset.mcp-tools.json', import.meta.url);

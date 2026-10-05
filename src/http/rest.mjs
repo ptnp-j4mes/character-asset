@@ -45,7 +45,9 @@ export function errorStatus(error) {
     INVALID_ARGUMENT: 400,
     NOT_FOUND: 404,
     CONFLICT: 409,
-    UNSUPPORTED_OPERATION: 422
+    UNSUPPORTED_OPERATION: 422,
+    VALIDATION_FAILED: 422,
+    INTERNAL_ERROR: 500
   }[error.code] ?? 500;
 }
 
@@ -55,6 +57,17 @@ export function sendRestError(res, error) {
     ? error.toJSON()
     : { code: 'INTERNAL_ERROR', message: 'Internal server error' };
   sendJson(res, status, { error: normalized });
+}
+
+function boolQuery(value) {
+  if (value === null) return false;
+  return value === 'true' || value === '1';
+}
+
+function ensurePartCharacter(part, characterId) {
+  if (part?.character_id !== characterId) {
+    throw new CharacterAssetError('NOT_FOUND', `Part does not belong to character ${characterId}`, { character_id: characterId });
+  }
 }
 
 export async function handleRest(req, res, url, service) {
@@ -71,6 +84,16 @@ export async function handleRest(req, res, url, service) {
   const specMatch = url.pathname.match(/^\/characters\/([^/]+)\/spec$/);
   if (req.method === 'GET' && specMatch) {
     sendJson(res, 200, { spec: await service.getCharacterSpec(decodeURIComponent(specMatch[1])) });
+    return true;
+  }
+
+  const generateBaseViewsMatch = url.pathname.match(/^\/characters\/([^/]+)\/base-views:generate$/);
+  if (req.method === 'POST' && generateBaseViewsMatch) {
+    const body = await readJsonBody(req);
+    sendJson(res, 201, await service.generateBaseViews({
+      ...body,
+      character_id: decodeURIComponent(generateBaseViewsMatch[1])
+    }));
     return true;
   }
 
@@ -121,12 +144,112 @@ export async function handleRest(req, res, url, service) {
     return true;
   }
 
+  const autoSegmentMatch = url.pathname.match(/^\/characters\/([^/]+)\/parts:auto-segment$/);
+  if (req.method === 'POST' && autoSegmentMatch) {
+    const body = await readJsonBody(req);
+    sendJson(res, 201, {
+      segmentation: await service.autoSegmentParts({
+        ...body,
+        character_id: decodeURIComponent(autoSegmentMatch[1])
+      })
+    });
+    return true;
+  }
+
+  const listPartsMatch = url.pathname.match(/^\/characters\/([^/]+)\/parts$/);
+  if (req.method === 'GET' && listPartsMatch) {
+    sendJson(res, 200, await service.listParts({
+      character_id: decodeURIComponent(listPartsMatch[1]),
+      ...(url.searchParams.get('direction') ? { direction: url.searchParams.get('direction') } : {}),
+      approved_only: boolQuery(url.searchParams.get('approved_only'))
+    }));
+    return true;
+  }
+
+  const manualPartMatch = url.pathname.match(/^\/characters\/([^/]+)\/parts:manual$/);
+  if (req.method === 'POST' && manualPartMatch) {
+    const body = await readJsonBody(req, { maxBytes: MAX_IMAGE_BODY_BYTES });
+    sendJson(res, 201, {
+      part: await service.createManualPart({
+        ...body,
+        character_id: decodeURIComponent(manualPartMatch[1])
+      })
+    });
+    return true;
+  }
+
+  const partArtifactMatch = url.pathname.match(/^\/characters\/([^/]+)\/parts\/([^/]+)\/(cutout|mask)$/);
+  if (req.method === 'GET' && partArtifactMatch) {
+    const image = await service.getPartArtifact(
+      decodeURIComponent(partArtifactMatch[1]),
+      decodeURIComponent(partArtifactMatch[2]),
+      partArtifactMatch[3]
+    );
+    sendPng(res, image);
+    return true;
+  }
+
+  const updatePartMaskMatch = url.pathname.match(/^\/characters\/([^/]+)\/parts\/([^/]+)\/mask$/);
+  if (req.method === 'PUT' && updatePartMaskMatch) {
+    const characterId = decodeURIComponent(updatePartMaskMatch[1]);
+    const partId = decodeURIComponent(updatePartMaskMatch[2]);
+    const current = await service.getPart(partId);
+    ensurePartCharacter(current.part, characterId);
+    const body = await readJsonBody(req, { maxBytes: MAX_IMAGE_BODY_BYTES });
+    sendJson(res, 200, { part: await service.updatePartMask({ ...body, part_id: partId }) });
+    return true;
+  }
+
+  const approvePartMatch = url.pathname.match(/^\/characters\/([^/]+)\/parts\/([^/]+):approve$/);
+  if (req.method === 'POST' && approvePartMatch) {
+    const characterId = decodeURIComponent(approvePartMatch[1]);
+    const partId = decodeURIComponent(approvePartMatch[2]);
+    const current = await service.getPart(partId);
+    ensurePartCharacter(current.part, characterId);
+    const body = await readJsonBody(req);
+    sendJson(res, 200, { part: await service.approvePart({ ...body, part_id: partId }) });
+    return true;
+  }
+
+  const getPartMatch = url.pathname.match(/^\/characters\/([^/]+)\/parts\/([^/]+)$/);
+  if (req.method === 'GET' && getPartMatch) {
+    const characterId = decodeURIComponent(getPartMatch[1]);
+    const part = await service.getPart(decodeURIComponent(getPartMatch[2]));
+    ensurePartCharacter(part.part, characterId);
+    sendJson(res, 200, part);
+    return true;
+  }
+
   const rigMatch = url.pathname.match(/^\/characters\/([^/]+)\/rig$/);
   if (req.method === 'POST' && rigMatch) {
     const body = await readJsonBody(req);
     sendJson(res, 201, {
       rig: await service.createRig({ ...body, character_id: decodeURIComponent(rigMatch[1]) })
     });
+    return true;
+  }
+
+  if (req.method === 'GET' && rigMatch) {
+    sendJson(res, 200, { rig: await service.getRig(decodeURIComponent(rigMatch[1])) });
+    return true;
+  }
+
+  const autoBindMatch = url.pathname.match(/^\/characters\/([^/]+)\/rig:auto-bind$/);
+  if (req.method === 'POST' && autoBindMatch) {
+    const body = await readJsonBody(req);
+    sendJson(res, 200, await service.autoBindParts({
+      ...body,
+      character_id: decodeURIComponent(autoBindMatch[1])
+    }));
+    return true;
+  }
+
+  const validateRigMatch = url.pathname.match(/^\/characters\/([^/]+)\/rig:validate$/);
+  if (req.method === 'POST' && validateRigMatch) {
+    await readJsonBody(req);
+    sendJson(res, 200, await service.validateRig({
+      character_id: decodeURIComponent(validateRigMatch[1])
+    }));
     return true;
   }
 

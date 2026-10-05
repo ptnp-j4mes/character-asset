@@ -1242,10 +1242,7 @@
                         "SW",
                         "W",
                         "NW",
-                        "N",
-                        "NE",
-                        "E",
-                        "SE"
+                        "N"
                       ]
                     },
                     "minItems": 1,
@@ -1274,13 +1271,20 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "job": {
-                      "$ref": "#/components/schemas/Job"
+                    "generation": {
+                      "$ref": "#/components/schemas/BaseViewGeneration"
+                    },
+                    "views": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/BaseView"
+                      }
                     }
                   },
                   "additionalProperties": false,
                   "required": [
-                    "job"
+                    "generation",
+                    "views"
                   ]
                 }
               }
@@ -2023,7 +2027,8 @@
                     ]
                   },
                   "part_template": {
-                    "type": "string"
+                    "type": "string",
+                    "default": "biped_chibi_parts_v1"
                   },
                   "mode": {
                     "type": "string",
@@ -2050,13 +2055,13 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "job": {
-                      "$ref": "#/components/schemas/Job"
+                    "segmentation": {
+                      "$ref": "#/components/schemas/PartSegmentation"
                     }
                   },
                   "additionalProperties": false,
                   "required": [
-                    "job"
+                    "segmentation"
                   ]
                 }
               }
@@ -2213,16 +2218,122 @@
             }
           }
         }
-      },
-      "post": {
-        "operationId": "parts.create_manual",
-        "summary": "Create manual part",
+      }
+    },
+    "/characters/{character_id}/parts/{part_id}": {
+      "get": {
+        "operationId": "parts.get",
+        "summary": "Get part",
         "tags": [
           "Parts"
         ],
         "parameters": [
           {
             "name": "character_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "part_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "part": {
+                      "$ref": "#/components/schemas/PartAsset"
+                    },
+                    "cutout_url": {
+                      "type": "string"
+                    },
+                    "mask_url": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "part",
+                    "cutout_url",
+                    "mask_url"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/characters/{character_id}/parts/{part_id}/mask": {
+      "put": {
+        "operationId": "parts.update_mask",
+        "summary": "Update part mask",
+        "tags": [
+          "Parts"
+        ],
+        "parameters": [
+          {
+            "name": "character_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "part_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -2237,61 +2348,198 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "direction": {
+                  "mask_data_url": {
                     "type": "string",
-                    "enum": [
-                      "S",
-                      "SW",
-                      "W",
-                      "NW",
-                      "N",
-                      "NE",
-                      "E",
-                      "SE"
-                    ]
-                  },
-                  "name": {
-                    "type": "string"
-                  },
-                  "category": {
-                    "type": "string",
-                    "enum": [
-                      "body_part",
-                      "hair",
-                      "equipment",
-                      "shadow",
-                      "fx",
-                      "custom"
-                    ]
-                  },
-                  "image_asset_id": {
-                    "type": "string"
-                  },
-                  "pivot": {
-                    "type": "object",
-                    "properties": {
-                      "x": {
-                        "type": "number"
-                      },
-                      "y": {
-                        "type": "number"
-                      }
-                    },
-                    "additionalProperties": false,
-                    "required": [
-                      "x",
-                      "y"
-                    ]
+                    "pattern": "^data:image/png;base64,"
                   }
                 },
                 "additionalProperties": false,
                 "required": [
-                  "direction",
-                  "name",
-                  "category",
-                  "image_asset_id",
-                  "pivot"
+                  "mask_data_url"
                 ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "part": {
+                      "$ref": "#/components/schemas/PartAsset"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "part"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "parts.get_mask",
+        "summary": "Get part mask",
+        "tags": [
+          "Parts"
+        ],
+        "parameters": [
+          {
+            "name": "character_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "part_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "contentMediaType": "image/png"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/characters/{character_id}/parts/{part_id}:approve": {
+      "post": {
+        "operationId": "parts.approve",
+        "summary": "Approve part",
+        "tags": [
+          "Parts"
+        ],
+        "parameters": [
+          {
+            "name": "character_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "part_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "approved": {
+                    "type": "boolean",
+                    "default": true
+                  }
+                },
+                "additionalProperties": false
               }
             }
           }
@@ -2360,84 +2608,6 @@
       }
     },
     "/parts/{part_id}": {
-      "get": {
-        "operationId": "parts.get",
-        "summary": "Get part",
-        "tags": [
-          "Parts"
-        ],
-        "parameters": [
-          {
-            "name": "part_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "part": {
-                      "$ref": "#/components/schemas/PartAsset"
-                    }
-                  },
-                  "additionalProperties": false,
-                  "required": [
-                    "part"
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Resource not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          }
-        }
-      },
       "delete": {
         "operationId": "parts.delete",
         "summary": "Delete part",
@@ -2523,16 +2693,16 @@
         }
       }
     },
-    "/parts/{part_id}/mask": {
-      "put": {
-        "operationId": "parts.update_mask",
-        "summary": "Update part mask",
+    "/characters/{character_id}/parts:manual": {
+      "post": {
+        "operationId": "parts.create_manual",
+        "summary": "Create manual part",
         "tags": [
           "Parts"
         ],
         "parameters": [
           {
-            "name": "part_id",
+            "name": "character_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -2547,49 +2717,63 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "mask": {
+                  "direction": {
+                    "type": "string",
+                    "enum": [
+                      "S",
+                      "SW",
+                      "W",
+                      "NW",
+                      "N"
+                    ]
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "mask_data_url": {
+                    "type": "string",
+                    "pattern": "^data:image/png;base64,"
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "body_part",
+                      "hair",
+                      "equipment",
+                      "shadow",
+                      "fx",
+                      "custom"
+                    ]
+                  },
+                  "pivot": {
                     "type": "object",
                     "properties": {
-                      "format": {
-                        "type": "string",
-                        "enum": [
-                          "polygon",
-                          "rle",
-                          "asset_ref"
-                        ]
+                      "x": {
+                        "type": "number"
                       },
-                      "polygon": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "x": {
-                              "type": "number"
-                            },
-                            "y": {
-                              "type": "number"
-                            }
-                          },
-                          "additionalProperties": false,
-                          "required": [
-                            "x",
-                            "y"
-                          ]
-                        }
-                      },
-                      "mask_asset_id": {
-                        "type": "string"
+                      "y": {
+                        "type": "number"
                       }
                     },
                     "additionalProperties": false,
                     "required": [
-                      "format"
+                      "x",
+                      "y"
                     ]
+                  },
+                  "bone_hint": {
+                    "type": "string"
+                  },
+                  "replace": {
+                    "type": "boolean",
+                    "default": false
                   }
                 },
                 "additionalProperties": false,
                 "required": [
-                  "mask"
+                  "direction",
+                  "name",
+                  "mask_data_url"
                 ]
               }
             }
@@ -2658,14 +2842,22 @@
         }
       }
     },
-    "/parts/{part_id}/approval": {
-      "put": {
-        "operationId": "parts.approve",
-        "summary": "Approve part",
+    "/characters/{character_id}/parts/{part_id}/cutout": {
+      "get": {
+        "operationId": "parts.get_cutout",
+        "summary": "Get part cutout",
         "tags": [
           "Parts"
         ],
         "parameters": [
+          {
+            "name": "character_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "part_id",
             "in": "path",
@@ -2675,41 +2867,14 @@
             }
           }
         ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "approved": {
-                    "type": "boolean"
-                  }
-                },
-                "additionalProperties": false,
-                "required": [
-                  "approved"
-                ]
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": "Success",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "part": {
-                      "$ref": "#/components/schemas/PartAsset"
-                    }
-                  },
-                  "additionalProperties": false,
-                  "required": [
-                    "part"
-                  ]
+                  "type": "string",
+                  "contentMediaType": "image/png"
                 }
               }
             }
@@ -3129,7 +3294,7 @@
         }
       }
     },
-    "/rigs/{rig_id}:auto-bind": {
+    "/characters/{character_id}/rig:auto-bind": {
       "post": {
         "operationId": "rig.auto_bind_parts",
         "summary": "Auto bind parts",
@@ -3138,7 +3303,7 @@
         ],
         "parameters": [
           {
-            "name": "rig_id",
+            "name": "character_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -3154,7 +3319,8 @@
                 "type": "object",
                 "properties": {
                   "overwrite_existing": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "default": false
                   }
                 },
                 "additionalProperties": false
@@ -3184,13 +3350,27 @@
                       "items": {
                         "type": "string"
                       }
+                    },
+                    "skipped_part_ids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "unmatched_bones": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
                     }
                   },
                   "additionalProperties": false,
                   "required": [
                     "rig",
                     "bound_part_ids",
-                    "unbound_part_ids"
+                    "unbound_part_ids",
+                    "skipped_part_ids",
+                    "unmatched_bones"
                   ]
                 }
               }
@@ -3645,7 +3825,7 @@
         }
       }
     },
-    "/rigs/{rig_id}:validate": {
+    "/characters/{character_id}/rig:validate": {
       "post": {
         "operationId": "rig.validate",
         "summary": "Validate rig",
@@ -3654,7 +3834,7 @@
         ],
         "parameters": [
           {
-            "name": "rig_id",
+            "name": "character_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -7403,7 +7583,8 @@
           "generator": {
             "type": "string",
             "enum": [
-              "chatgpt-web"
+              "chatgpt-web",
+              "image-bridge"
             ]
           },
           "prompt_template_version": {
@@ -7533,6 +7714,9 @@
             "items": {
               "type": "string"
             }
+          },
+          "next_tool": {
+            "type": "string"
           }
         },
         "additionalProperties": false,
@@ -7549,10 +7733,12 @@
         "type": "object",
         "properties": {
           "part_id": {
-            "type": "string"
+            "type": "string",
+            "pattern": "^part_[A-Za-z0-9_-]+$"
           },
           "character_id": {
-            "type": "string"
+            "type": "string",
+            "pattern": "^char_[A-Za-z0-9_-]+$"
           },
           "direction": {
             "type": "string",
@@ -7568,6 +7754,9 @@
             ]
           },
           "name": {
+            "type": "string"
+          },
+          "template": {
             "type": "string"
           },
           "category": {
@@ -7587,6 +7776,81 @@
           "mask_asset_id": {
             "type": "string"
           },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "processing",
+              "ready",
+              "approved",
+              "failed",
+              "archived"
+            ]
+          },
+          "approved": {
+            "type": "boolean",
+            "default": false
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "base_view",
+                  "manual_mask"
+                ]
+              },
+              "direction": {
+                "type": "string",
+                "enum": [
+                  "S",
+                  "SW",
+                  "W",
+                  "NW",
+                  "N"
+                ]
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "direction"
+            ]
+          },
+          "bounds": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "y": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "width": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "height": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "x",
+              "y",
+              "width",
+              "height"
+            ]
+          },
           "pivot": {
             "type": "object",
             "properties": {
@@ -7603,23 +7867,80 @@
               "y"
             ]
           },
+          "bone_hint": {
+            "type": "string"
+          },
           "default_draw_layer": {
             "type": "integer"
           },
-          "approved": {
-            "type": "boolean",
-            "default": false
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "draft",
-              "processing",
-              "ready",
-              "approved",
-              "failed",
-              "archived"
+          "occlusion": {
+            "type": "object",
+            "properties": {
+              "needs_completion": {
+                "type": "boolean"
+              },
+              "reason": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "needs_completion",
+              "reason"
             ]
+          },
+          "authoring": {
+            "type": "object",
+            "properties": {
+              "source_width": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "source_height": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "runtime_width": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "runtime_height": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "authoring_recommended_width": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "authoring_recommended_height": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "source_width",
+              "source_height",
+              "runtime_width",
+              "runtime_height",
+              "authoring_recommended_width",
+              "authoring_recommended_height"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
           }
         },
         "additionalProperties": false,
@@ -7628,10 +7949,95 @@
           "character_id",
           "direction",
           "name",
+          "template",
           "category",
           "image_asset_id",
+          "mask_asset_id",
+          "status",
+          "approved",
+          "confidence",
+          "source",
+          "bounds",
           "pivot",
-          "status"
+          "bone_hint",
+          "default_draw_layer",
+          "occlusion",
+          "authoring",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "PartSegmentation": {
+        "type": "object",
+        "properties": {
+          "character_id": {
+            "type": "string",
+            "pattern": "^char_[A-Za-z0-9_-]+$"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "S",
+              "SW",
+              "W",
+              "NW",
+              "N"
+            ]
+          },
+          "template": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "hybrid"
+            ]
+          },
+          "parts_created": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "draft_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "approved_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "review_required": {
+            "type": "boolean"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "parts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PartAsset"
+            }
+          },
+          "next_tool": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "character_id",
+          "direction",
+          "template",
+          "mode",
+          "parts_created",
+          "draft_count",
+          "approved_count",
+          "review_required",
+          "warnings",
+          "parts",
+          "next_tool"
         ]
       },
       "Bone": {

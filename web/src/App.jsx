@@ -112,12 +112,42 @@ function restEquivalent(tool, args) {
       path = `/characters/${id}/base-views:validate`;
       body = {};
       break;
+    case "parts.auto_segment": {
+      path = `/characters/${id}/parts:auto-segment`;
+      const { character_id, ...rest } = args;
+      body = rest;
+      break;
+    }
+    case "parts.list":
+      method = "GET";
+      path = `/characters/${id}/parts${args.direction ? `?direction=${encodeURIComponent(args.direction)}` : ""}`;
+      body = null;
+      break;
+    case "parts.approve":
+      path = `/characters/${id}/parts/${encodeURIComponent(args.part_id)}:approve`;
+      body = { approved: args.approved ?? true };
+      break;
     case "rig.create": {
       path = `/characters/${id}/rig`;
       const { character_id, ...rest } = args;
       body = rest;
       break;
     }
+    case "rig.get":
+      method = "GET";
+      path = `/characters/${id}/rig`;
+      body = null;
+      break;
+    case "rig.auto_bind_parts": {
+      path = `/characters/${id}/rig:auto-bind`;
+      const { character_id, ...rest } = args;
+      body = rest;
+      break;
+    }
+    case "rig.validate":
+      path = `/characters/${id}/rig:validate`;
+      body = {};
+      break;
     default:
       path = "/mcp";
       body = args;
@@ -143,8 +173,18 @@ function nextTool(tool, data, succeeded, generation) {
         ? "character.validate_base_views"
         : generation?.generation_id ? "character.ingest_base_view" : "character.prepare_base_views";
     case "character.validate_base_views":
-      return data?.validation?.valid ? "rig.create" : "character.ingest_base_view";
+      return data?.validation?.valid ? "parts.auto_segment" : "character.ingest_base_view";
+    case "parts.auto_segment":
+      return "parts.list";
+    case "parts.list":
+      return data?.parts?.some((part) => part.approved) ? "rig.create" : "parts.approve";
+    case "parts.approve":
+      return "rig.create";
     case "rig.create":
+      return "rig.auto_bind_parts";
+    case "rig.auto_bind_parts":
+      return "rig.validate";
+    case "rig.validate":
       return "—";
     default:
       return "—";
@@ -186,6 +226,10 @@ function sourceUrl(file) {
 
 function savedImageUrl(characterId, direction) {
   return `/api/characters/${encodeURIComponent(characterId)}/base-views/${direction}/image`;
+}
+
+function partImageUrl(characterId, partId, kind = "cutout") {
+  return `/api/characters/${encodeURIComponent(characterId)}/parts/${encodeURIComponent(partId)}/${kind}`;
 }
 
 function CharacterArt({ direction, imageUrl, className = "" }) {
@@ -268,6 +312,9 @@ function App() {
   const [generation, setGeneration] = useState(null);
   const [storedViews, setStoredViews] = useState([]);
   const [validation, setValidation] = useState(null);
+  const [parts, setParts] = useState([]);
+  const [rig, setRig] = useState(null);
+  const [stage, setStage] = useState("Reference");
   const [selectedDirection, setSelectedDirection] = useState("S");
   const [section, setSection] = useState("Characters");
   const [projectExpanded, setProjectExpanded] = useState(true);
@@ -289,6 +336,12 @@ function App() {
   const activeView = viewsByDirection[selectedDirection];
   const activeImage = workspace && activeView ? savedImageUrl(workspace.character_id, selectedDirection) : null;
   const promptsReady = Boolean(generation?.views?.some((view) => view.direction === selectedDirection));
+  const selectedParts = useMemo(() => parts.filter((part) => part.direction === selectedDirection), [parts, selectedDirection]);
+  const approvedParts = useMemo(() => parts.filter((part) => part.approved), [parts]);
+  const partReadiness = useMemo(() => Object.fromEntries(DIRECTIONS.map((direction) => {
+    const directional = parts.filter((part) => part.direction === direction.key);
+    return [direction.key, { total: directional.length, approved: directional.filter((part) => part.approved).length }];
+  })), [parts]);
 
   useEffect(() => {
     let mounted = true;
@@ -397,6 +450,10 @@ function App() {
       if (specResult.success) setSpec(specResult.data?.spec ?? null);
       const viewsResult = await callTool("character.get_base_views", { character_id: saved.character_id }, saved.generation ?? null);
       if (viewsResult.success) setStoredViews(viewsResult.data?.views ?? []);
+      const partsResult = await callTool("parts.list", { character_id: saved.character_id });
+      if (partsResult.success) setParts(partsResult.data?.parts ?? []);
+      const rigResult = await callTool("rig.get", { character_id: saved.character_id });
+      if (rigResult.success) setRig(rigResult.data?.rig ?? null);
       setBusy(false);
     })();
   }, []);
@@ -468,6 +525,9 @@ function App() {
     setStoredViews([]);
     setGeneration(null);
     setValidation(null);
+    setParts([]);
+    setRig(null);
+    setStage("Reference");
     setSection("Characters");
     setSelectedDirection("S");
     setModalOpen(false);
@@ -501,7 +561,7 @@ function App() {
       setValidation(result.data.validation);
       const validationResult = result.data.validation;
       setNotice(validationResult.valid
-        ? `Validated ${validationResult.views_checked} base views. Ready for rig.`
+        ? `Validated ${validationResult.views_checked} base views. Ready to extract riggable parts.`
         : `${validationResult.errors.length} required view${validationResult.errors.length === 1 ? "" : "s"} still missing.`);
     } else {
       setNotice(result.record.errors[0]?.message ?? "Validation could not be completed.");
@@ -509,14 +569,62 @@ function App() {
     setBusy(false);
   }
 
+  async function extractParts(direction = selectedDirection) {
+    if (!workspace || !viewsByDirection[direction]) {
+      setNotice(`Store the ${direction} reference before extracting parts.`);
+      return;
+    }
+    setBusy(true);
+    const result = await callTool("parts.auto_segment", {
+      character_id: workspace.character_id,
+      source_direction: direction,
+      part_template: "biped_chibi_parts_v1",
+      mode: "hybrid",
+    });
+    if (result.success) {
+      const list = await callTool("parts.list", { character_id: workspace.character_id });
+      if (list.success) setParts(list.data?.parts ?? []);
+      setStage("Parts");
+      setNotice(`Extracted ${result.data?.segmentation?.parts_created ?? 17} draft parts for ${direction}. Review before approval.`);
+    } else setNotice(result.record.errors[0]?.message ?? "Part extraction failed.");
+    setBusy(false);
+  }
+
+  async function approvePart(part) {
+    if (!workspace) return;
+    setBusy(true);
+    const result = await callTool("parts.approve", { character_id: workspace.character_id, part_id: part.part_id, approved: true });
+    if (result.success && result.data?.part) {
+      setParts((items) => items.map((item) => item.part_id === part.part_id ? result.data.part : item));
+      setNotice(`${part.name} approved for rig binding.`);
+    } else setNotice(result.record.errors[0]?.message ?? "Part approval failed.");
+    setBusy(false);
+  }
+
   async function createRig() {
-    if (!workspace || !spec) return;
+    if (!workspace || !spec || approvedParts.length === 0) return;
     setBusy(true);
     const result = await callTool("rig.create", {
       character_id: workspace.character_id,
       rig_preset: spec.rig_preset,
+      auto_bind: false,
     });
-    setNotice(result.success ? "Rig created from the selected biped chibi preset." : result.record.errors[0]?.message ?? "Rig creation failed.");
+    if (result.success) {
+      setRig(result.data?.rig ?? null);
+      setStage("Rig");
+      setNotice("Rig created. Approved parts are ready for auto bind.");
+    } else setNotice(result.record.errors[0]?.message ?? "Rig creation failed.");
+    setBusy(false);
+  }
+
+  async function autoBindRig() {
+    if (!workspace || !rig) return;
+    setBusy(true);
+    const result = await callTool("rig.auto_bind_parts", { character_id: workspace.character_id });
+    if (result.success) {
+      setRig(result.data?.rig ?? rig);
+      setNotice(`Bound ${result.data?.bound_part_ids?.length ?? 0} approved parts. ${result.data?.unmatched_bones?.length ?? 0} bones remain unmatched.`);
+    } else setNotice(result.record.errors[0]?.message ?? "Auto bind failed.");
     setBusy(false);
   }
 
@@ -573,13 +681,15 @@ function App() {
   }
 
   const currentViewCount = storedViews.length;
-  const readiness = validation?.valid
-    ? "Validated · Ready for rig"
-    : validation
-      ? `Needs view fixes · ${validation.errors.length} missing`
-    : generation
-      ? "Prompts prepared · 5 source references"
-      : "Draft · Source references";
+  const readiness = approvedParts.length
+    ? `${approvedParts.length} parts approved · Rig ready`
+    : validation?.valid
+      ? "Validated · Ready for parts"
+      : validation
+        ? `Needs view fixes · ${validation.errors.length} missing`
+        : generation
+          ? "Prompts prepared · 5 source references"
+          : "Draft · Source references";
 
   return (
     <div className="app-shell">
@@ -732,27 +842,78 @@ function App() {
                 </div>
               </div>
 
-              <div className="preview-stage" aria-label={`${selectedDirection} character preview`}>
-                <CharacterArt direction={activeDirection} imageUrl={activeImage} className="hero-art" />
-                <div className="stage-label"><span className="stage-live-dot" />{activeView ? "STORED PNG" : "SOURCE REFERENCE"}</div>
-                <div className="stage-size">128 × 128</div>
-              </div>
-
-              <div className="view-grid" aria-label="Base view references">
-                {DIRECTIONS.map((direction) => (
-                  <ViewCard
-                    key={direction.key}
-                    direction={direction}
-                    selected={direction.key === selectedDirection}
-                    saved={viewsByDirection[direction.key]}
-                    validation={validation}
-                    imageUrl={workspace && viewsByDirection[direction.key] ? savedImageUrl(workspace.character_id, direction.key) : null}
-                    generationReady={Boolean(generation?.views?.some((view) => view.direction === direction.key))}
-                    onSelect={() => setSelectedDirection(direction.key)}
-                    onUpload={uploadView}
-                  />
+              <div className="stage-switcher" role="tablist" aria-label="Character authoring stage">
+                {["Reference", "Parts", "Rig"].map((name) => (
+                  <button key={name} type="button" role="tab" aria-selected={stage === name} className={stage === name ? "is-active" : ""} onClick={() => setStage(name)} disabled={name === "Rig" && approvedParts.length === 0}>
+                    {name}
+                    {name === "Parts" && <span>{approvedParts.length}/{parts.length || 17}</span>}
+                  </button>
                 ))}
               </div>
+
+              {stage === "Reference" ? (
+                <>
+                  <div className="preview-stage" aria-label={`${selectedDirection} character reference`}>
+                    <CharacterArt direction={activeDirection} imageUrl={activeImage} className="hero-art" />
+                    <div className="stage-label"><span className="stage-live-dot" />REFERENCE · {activeView ? "STORED PNG" : "SOURCE KIT"}</div>
+                    <div className="stage-size">128 × 128 · authoring target ≥ 512²</div>
+                  </div>
+                  <div className="view-grid" aria-label="Base view references">
+                    {DIRECTIONS.map((direction) => (
+                      <ViewCard
+                        key={direction.key}
+                        direction={direction}
+                        selected={direction.key === selectedDirection}
+                        saved={viewsByDirection[direction.key]}
+                        validation={validation}
+                        imageUrl={workspace && viewsByDirection[direction.key] ? savedImageUrl(workspace.character_id, direction.key) : null}
+                        generationReady={Boolean(generation?.views?.some((view) => view.direction === direction.key))}
+                        onSelect={() => setSelectedDirection(direction.key)}
+                        onUpload={uploadView}
+                      />
+                    ))}
+                  </div>
+                  {validation?.valid && (
+                    <div className="parts-cta">
+                      <div><strong>{selectedDirection} reference validated</strong><span>Parts {partReadiness[selectedDirection]?.approved ?? 0} / 17 approved</span></div>
+                      <button className="primary-button" type="button" onClick={() => extractParts()} disabled={busy || !activeView || selectedParts.length > 0}><Cube size={15} weight="fill" /> {selectedParts.length ? "Parts extracted" : "Extract Parts"}</button>
+                    </div>
+                  )}
+                </>
+              ) : stage === "Parts" ? (
+                <section className="parts-workspace" aria-label={`${selectedDirection} semantic parts`}>
+                  <div className="parts-toolbar">
+                    <div><span className="eyebrow">DIRECTION {selectedDirection}</span><h2>Semantic parts</h2><p>Draft masks are template-assisted. Review every part before rig binding.</p></div>
+                    <button className="secondary-button" type="button" onClick={() => extractParts()} disabled={busy || !activeView || selectedParts.length > 0}>{selectedParts.length ? "17 parts extracted" : "Extract Parts"}</button>
+                  </div>
+                  <div className="parts-layout">
+                    <div className="parts-reference">
+                      <div className="preview-stage compact"><CharacterArt direction={activeDirection} imageUrl={activeImage} className="hero-art" /><div className="stage-label">REFERENCE</div></div>
+                      <div className="resolution-warning"><WarningCircle size={16} weight="fill" /><span>128 × 128 source: suitable for workflow review, below the recommended 512 × 512 authoring master.</span></div>
+                    </div>
+                    <div className="parts-grid">
+                      {selectedParts.length ? selectedParts.map((part) => (
+                        <article className={`part-card ${part.approved ? "is-approved" : ""}`} key={part.part_id}>
+                          <div className="part-preview"><img src={partImageUrl(workspace.character_id, part.part_id)} alt={`${part.name} cutout`} /></div>
+                          <div className="part-card-copy"><strong>{part.name}</strong><span>{part.status} · {Math.round((part.confidence ?? 0) * 100)}% confidence</span><small>bone · {part.bone_hint}</small></div>
+                          {part.approved ? <span className="part-approved"><CheckCircle size={14} weight="fill" /> Approved</span> : <button className="secondary-button compact-button" type="button" onClick={() => approvePart(part)} disabled={busy}>Approve</button>}
+                        </article>
+                      )) : (
+                        <div className="parts-empty"><Cube size={28} /><strong>No semantic parts yet</strong><span>Validate the reference, then extract the 17-part biped chibi template.</span></div>
+                      )}
+                    </div>
+                  </div>
+                </section>
+              ) : (
+                <section className="inline-rig-stage">
+                  <div className="rig-card">
+                    <div className="rig-card-icon"><GearSix size={22} weight="fill" /></div>
+                    <div className="rig-card-copy"><strong>{rig ? `Rig v${rig.version}` : "Rig not created"}</strong><span>{approvedParts.length} approved parts · {rig?.bindings?.length ?? 0} bindings</span></div>
+                    {!rig ? <button className="primary-button" type="button" onClick={createRig} disabled={busy || approvedParts.length === 0}>Create rig</button> : <button className="primary-button" type="button" onClick={autoBindRig} disabled={busy}>Auto Bind</button>}
+                  </div>
+                  <div className="rig-stage-note">Rig creation is unlocked only after at least one part is approved. Auto Bind ignores draft parts.</div>
+                </section>
+              )}
 
               <section className="recent-operation">
                 <div className="recent-heading">
@@ -790,8 +951,8 @@ function App() {
               <div className="secondary-title"><div><span className="eyebrow">RIG WORKSPACE</span><h1>{workspace?.character_name ?? "Novice Adventurer 02"}</h1><p>Build the character rig from the active spec preset.</p></div><GearSix size={30} weight="fill" /></div>
               <div className="rig-card">
                 <div className="rig-card-icon"><Cube size={22} weight="fill" /></div>
-                <div className="rig-card-copy"><strong>Biped chibi · v1</strong><span>{spec?.rig_preset ?? "biped_chibi_v1"} · {validation?.valid ? "base views validated" : "base view validation recommended"}</span></div>
-                <button className="primary-button" type="button" onClick={createRig} disabled={!workspace || busy}><GearSix size={15} weight="fill" /> Create rig</button>
+                <div className="rig-card-copy"><strong>Biped chibi · v1</strong><span>{spec?.rig_preset ?? "biped_chibi_v1"} · {approvedParts.length} approved parts · {rig?.bindings?.length ?? 0} bound</span></div>
+                {!rig ? <button className="primary-button" type="button" onClick={createRig} disabled={!workspace || busy || approvedParts.length === 0}><GearSix size={15} weight="fill" /> Create rig</button> : <button className="primary-button" type="button" onClick={autoBindRig} disabled={busy}><GearSix size={15} weight="fill" /> Auto Bind</button>}
               </div>
               {!workspace && <button className="primary-button create-project-button" type="button" onClick={() => { setModalOpen(true); setFormError(""); }}><Plus size={16} /> Create a character spec first</button>}
               {notice && <div className="notice" role="status"><span>{notice}</span><IconButton label="Dismiss message" onClick={() => setNotice("")}><X size={15} /></IconButton></div>}

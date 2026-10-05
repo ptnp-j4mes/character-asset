@@ -119,7 +119,7 @@ schemas['BaseViewGeneration'] = obj({
     'generation_id': string(pattern='^gen_[A-Za-z0-9_-]+$'),
     'character_id': string(pattern='^char_[A-Za-z0-9_-]+$'),
     'status': enum(['prepared']),
-    'generator': enum(['chatgpt-web']),
+    'generator': enum(['chatgpt-web','image-bridge']),
     'prompt_template_version': string(),
     'character_lock': obj({
         'spec_id': string(), 'asset_version': integer(minimum=1),
@@ -134,16 +134,44 @@ schemas['BaseViewValidation'] = obj({
     'valid': boolean(), 'score': integer(minimum=0, maximum=100),
     'views_checked': integer(minimum=0),
     'required_views': arr(enum(BASE_VIEWS)),
-    'warnings': arr(string()), 'errors': arr(string())
+    'warnings': arr(string()), 'errors': arr(string()), 'next_tool': string()
 }, ['valid','score','views_checked','required_views','warnings','errors'])
 
+part_bounds = obj({
+    'x': integer(minimum=0), 'y': integer(minimum=0),
+    'width': integer(minimum=0), 'height': integer(minimum=0)
+}, ['x','y','width','height'])
+part_authoring = obj({
+    'source_width': integer(minimum=1), 'source_height': integer(minimum=1),
+    'runtime_width': integer(minimum=1), 'runtime_height': integer(minimum=1),
+    'authoring_recommended_width': integer(minimum=1),
+    'authoring_recommended_height': integer(minimum=1)
+}, ['source_width','source_height','runtime_width','runtime_height','authoring_recommended_width','authoring_recommended_height'])
 schemas['PartAsset'] = obj({
-    'part_id': string(), 'character_id': string(), 'direction': enum(DIRECTIONS),
-    'name': string(), 'category': enum(['body_part','hair','equipment','shadow','fx','custom']),
+    'part_id': string(pattern='^part_[A-Za-z0-9_-]+$'),
+    'character_id': string(pattern='^char_[A-Za-z0-9_-]+$'),
+    'direction': enum(DIRECTIONS), 'name': string(), 'template': string(),
+    'category': enum(['body_part','hair','equipment','shadow','fx','custom']),
     'image_asset_id': string(), 'mask_asset_id': string(),
-    'pivot': vec2, 'default_draw_layer': integer(),
-    'approved': boolean(default=False), 'status': enum(STATUSES)
-}, ['part_id','character_id','direction','name','category','image_asset_id','pivot','status'])
+    'status': enum(STATUSES), 'approved': boolean(default=False),
+    'confidence': number(minimum=0, maximum=1),
+    'source': obj({'type':enum(['base_view','manual_mask']),'direction':enum(BASE_VIEWS)}, ['type','direction']),
+    'bounds': part_bounds, 'pivot': vec2, 'bone_hint': string(),
+    'default_draw_layer': integer(),
+    'occlusion': obj({'needs_completion':boolean(),'reason':{'oneOf':[string(),{'type':'null'}]}}, ['needs_completion','reason']),
+    'authoring': part_authoring,
+    'created_at': string(format='date-time'), 'updated_at': string(format='date-time')
+}, ['part_id','character_id','direction','name','template','category','image_asset_id','mask_asset_id','status','approved','confidence','source','bounds','pivot','bone_hint','default_draw_layer','occlusion','authoring','created_at','updated_at'])
+
+schemas['PartSegmentation'] = obj({
+    'character_id': string(pattern='^char_[A-Za-z0-9_-]+$'),
+    'direction': enum(BASE_VIEWS), 'template': string(),
+    'mode': enum(['auto','hybrid']),
+    'parts_created': integer(minimum=0), 'draft_count': integer(minimum=0),
+    'approved_count': integer(minimum=0), 'review_required': boolean(),
+    'warnings': arr(string()), 'parts': arr({'$ref':'#/$defs/PartAsset'}),
+    'next_tool': string()
+}, ['character_id','direction','template','mode','parts_created','draft_count','approved_count','review_required','warnings','parts','next_tool'])
 
 schemas['Bone'] = obj({
     'name': string(), 'parent': {'type':['string','null']}, 'position': vec2,
@@ -250,6 +278,7 @@ standalone_map = {
     'base-view-generation.schema.json':'BaseViewGeneration',
     'base-view-validation.schema.json':'BaseViewValidation',
     'part-asset.schema.json':'PartAsset',
+    'part-segmentation.schema.json':'PartSegmentation',
     'rig.schema.json':'Rig',
     'direction-profile.schema.json':'DirectionProfile',
     'animation-clip.schema.json':'AnimationClip',
@@ -368,7 +397,7 @@ ingest_base_view_input = obj({
     'model':string(),
     'replace':boolean(default=False)
 }, ['character_id','generation_id','direction','image_data_url'])
-add(tool('character.generate_base_views','Generate base views','Generate canonical 2.5D character base views from a server-side image provider. Planned automation path; not executable in the current ChatGPT Web-first runtime.', obj({'character_id':id_char,'views':arr(enum(DIRECTIONS),minItems=1,uniqueItems=True),'regenerate':boolean(default=False),'seed':integer()}, ['character_id','views']), job_out))
+add(tool('character.generate_base_views','Generate base views','Generate canonical base views through the configured image-generation bridge, then persist the returned PNGs.', obj({'character_id':id_char,'views':arr(enum(BASE_VIEWS),minItems=1,uniqueItems=True),'regenerate':boolean(default=False),'seed':integer()}, ['character_id','views']), obj({'generation':{'$ref':'#/$defs/BaseViewGeneration'},'views':arr({'$ref':'#/$defs/BaseView'})}, ['generation','views'])))
 add(tool('character.prepare_base_views','Prepare base views for ChatGPT Web','Build and persist locked prompts for ChatGPT Web/native image generation without calling an image provider from the server.', prepare_base_views_input, obj({'generation':{'$ref':'#/$defs/BaseViewGeneration'}}, ['generation'])))
 add(tool('character.ingest_base_view','Ingest ChatGPT Web base view','Persist one PNG produced by ChatGPT Web/native image generation and attach generation provenance.', ingest_base_view_input, obj({'view':{'$ref':'#/$defs/BaseView'}}, ['view'])))
 add(tool('character.get_base_views','Get base views','Read generated or ingested base-view assets.', obj({'character_id':id_char}, ['character_id']), obj({'character_id':id_char,'views':arr({'$ref':'#/$defs/BaseView'})}, ['character_id','views']), read=True, idempotent=True))
@@ -378,25 +407,25 @@ add(tool('character.generate_mirrored_views','Generate mirrored views','Create d
 add(tool('character.regenerate_view','Regenerate one view','Regenerate one character direction while preserving the same spec.', obj({'character_id':id_char,'direction':enum(DIRECTIONS),'seed':integer(),'reason':string(maxLength=1000)}, ['character_id','direction']), job_out))
 
 # Parts
-add(tool('parts.auto_segment','Auto segment parts','Segment a base view into riggable body parts.', obj({'character_id':id_char,'source_direction':enum(BASE_VIEWS),'part_template':string(default='biped_chibi_v1'),'mode':enum(['auto','hybrid'],default='hybrid')}, ['character_id','source_direction','part_template']), job_out))
+add(tool('parts.auto_segment','Auto segment parts','Create deterministic review-only draft semantic masks and cutouts from one canonical base view.', obj({'character_id':id_char,'source_direction':enum(BASE_VIEWS),'part_template':string(default='biped_chibi_parts_v1'),'mode':enum(['auto','hybrid'],default='hybrid')}, ['character_id','source_direction','part_template']), obj({'segmentation':{'$ref':'#/$defs/PartSegmentation'}}, ['segmentation'])))
 add(tool('parts.list','List parts','List segmented parts for a character and optional direction.', obj({'character_id':id_char,'direction':enum(DIRECTIONS),'approved_only':boolean(default=False)}, ['character_id']), obj({'parts':arr({'$ref':'#/$defs/PartAsset'})}, ['parts']), read=True, idempotent=True))
-add(tool('parts.get','Get part','Read one segmented part.', obj({'part_id':string()}, ['part_id']), obj({'part':{'$ref':'#/$defs/PartAsset'}}, ['part']), read=True, idempotent=True))
-mask_schema = obj({'format':enum(['polygon','rle','asset_ref']),'polygon':arr(vec2),'mask_asset_id':string()}, ['format'])
-add(tool('parts.update_mask','Update part mask','Replace the segmentation mask for a part.', obj({'part_id':string(),'mask':mask_schema}, ['part_id','mask']), obj({'part':{'$ref':'#/$defs/PartAsset'}}, ['part']), idempotent=True))
-add(tool('parts.approve','Approve part','Mark a segmented part as approved for rig binding.', obj({'part_id':string(),'approved':boolean(default=True)}, ['part_id']), obj({'part':{'$ref':'#/$defs/PartAsset'}}, ['part']), idempotent=True))
+add(tool('parts.get','Get part','Read one segmented part and its local artifact endpoints.', obj({'part_id':string(pattern='^part_[A-Za-z0-9_-]+$')}, ['part_id']), obj({'part':{'$ref':'#/$defs/PartAsset'},'cutout_url':string(),'mask_url':string()}, ['part','cutout_url','mask_url']), read=True, idempotent=True))
+mask_data_url = string(pattern='^data:image/png;base64,')
+add(tool('parts.update_mask','Update part mask','Replace one part mask PNG, regenerate its cutout, and reset approval.', obj({'part_id':string(pattern='^part_[A-Za-z0-9_-]+$'),'mask_data_url':mask_data_url}, ['part_id','mask_data_url']), obj({'part':{'$ref':'#/$defs/PartAsset'}}, ['part']), idempotent=True))
+add(tool('parts.approve','Approve part','Mark a reviewed part as approved for rig binding.', obj({'part_id':string(pattern='^part_[A-Za-z0-9_-]+$'),'approved':boolean(default=True)}, ['part_id']), obj({'part':{'$ref':'#/$defs/PartAsset'}}, ['part']), idempotent=True))
 add(tool('parts.delete','Delete part','Delete one segmented part.', obj({'part_id':string()}, ['part_id']), ack_out, destructive=True, idempotent=True))
-add(tool('parts.create_manual','Create manual part','Create a riggable part from an existing cutout or explicit region.', obj({'character_id':id_char,'direction':enum(DIRECTIONS),'name':string(),'category':enum(['body_part','hair','equipment','shadow','fx','custom']),'image_asset_id':string(),'pivot':vec2}, ['character_id','direction','name','category','image_asset_id','pivot']), obj({'part':{'$ref':'#/$defs/PartAsset'}}, ['part'])))
+add(tool('parts.create_manual','Create manual part','Create or explicitly replace a part using a PNG mask against the canonical base view.', obj({'character_id':id_char,'direction':enum(BASE_VIEWS),'name':string(),'mask_data_url':mask_data_url,'category':enum(['body_part','hair','equipment','shadow','fx','custom']),'pivot':vec2,'bone_hint':string(),'replace':boolean(default=False)}, ['character_id','direction','name','mask_data_url']), obj({'part':{'$ref':'#/$defs/PartAsset'}}, ['part'])))
 
 # Rig
 add(tool('rig.create','Create rig','Create a character rig from a preset and optionally auto-bind approved parts.', obj({'character_id':id_char,'rig_preset':string(),'auto_bind':boolean(default=True)}, ['character_id','rig_preset']), obj({'rig':{'$ref':'#/$defs/Rig'}}, ['rig'])))
 add(tool('rig.get','Get rig','Read the current character rig.', obj({'character_id':id_char}, ['character_id']), obj({'rig':{'$ref':'#/$defs/Rig'}}, ['rig']), read=True, idempotent=True))
 add(tool('rig.list_bones','List bones','List bones in a rig.', obj({'rig_id':id_rig}, ['rig_id']), obj({'bones':arr({'$ref':'#/$defs/Bone'})}, ['bones']), read=True, idempotent=True))
 add(tool('rig.update_bone','Update bone','Patch one bone in the rig.', obj({'rig_id':id_rig,'bone_name':string(),'patch':obj({'parent':{'type':['string','null']},'position':vec2,'length':number(minimum=0),'rotation':number(),'rotation_limits':obj({'min':number(),'max':number()}, additional=False)}, additional=False)}, ['rig_id','bone_name','patch']), obj({'rig':{'$ref':'#/$defs/Rig'}}, ['rig']), idempotent=True))
-add(tool('rig.auto_bind_parts','Auto bind parts','Bind approved character parts to matching preset bones.', obj({'rig_id':id_rig,'overwrite_existing':boolean(default=False)}, ['rig_id']), obj({'rig':{'$ref':'#/$defs/Rig'},'bound_part_ids':arr(string()),'unbound_part_ids':arr(string())}, ['rig','bound_part_ids','unbound_part_ids']), idempotent=True))
+add(tool('rig.auto_bind_parts','Auto bind parts','Bind approved character parts to matching preset bones; draft parts are skipped and reported.', obj({'character_id':id_char,'rig_id':id_rig,'overwrite_existing':boolean(default=False)}, [], anyOf=[{'required':['character_id']},{'required':['rig_id']}]), obj({'rig':{'$ref':'#/$defs/Rig'},'bound_part_ids':arr(string()),'unbound_part_ids':arr(string()),'skipped_part_ids':arr(string()),'unmatched_bones':arr(string())}, ['rig','bound_part_ids','unbound_part_ids','skipped_part_ids','unmatched_bones']), idempotent=True))
 add(tool('rig.update_binding','Update binding','Set or replace the bone binding for a part.', obj({'rig_id':id_rig,'part_id':string(),'bone_name':string(),'pivot':vec2,'offset':transform2d,'weight_mode':enum(['rigid','weighted'],default='rigid')}, ['rig_id','part_id','bone_name']), obj({'rig':{'$ref':'#/$defs/Rig'}}, ['rig']), idempotent=True))
 add(tool('rig.add_socket','Add socket','Add an equipment or effect socket to a bone.', obj({'rig_id':id_rig,'socket_name':string(),'bone_name':string(),'offset':transform2d,'slot_type':enum(SLOTS)}, ['rig_id','socket_name','bone_name','slot_type']), obj({'rig':{'$ref':'#/$defs/Rig'}}, ['rig'])))
 add(tool('rig.update_socket','Update socket','Patch an existing rig socket.', obj({'rig_id':id_rig,'socket_name':string(),'patch':obj({'bone_name':string(),'offset':transform2d,'slot_type':enum(SLOTS)}, additional=False)}, ['rig_id','socket_name','patch']), obj({'rig':{'$ref':'#/$defs/Rig'}}, ['rig']), idempotent=True))
-add(tool('rig.validate','Validate rig','Validate bone hierarchy, bindings and sockets.', obj({'rig_id':id_rig}, ['rig_id']), validation_out, read=True, idempotent=True))
+add(tool('rig.validate','Validate rig','Validate bone hierarchy, bindings, sockets, and approved-part coverage.', obj({'character_id':id_char,'rig_id':id_rig}, [], anyOf=[{'required':['character_id']},{'required':['rig_id']}]), validation_out, read=True, idempotent=True))
 
 # Directions
 add(tool('direction.create_profiles','Create direction profiles','Create 8-direction pose/layer profiles with optional mirror rules.', obj({'character_id':id_char,'directions':arr(enum(DIRECTIONS),minItems=1,uniqueItems=True),'mirror_rules':arr(mirror_pair)}, ['character_id','directions']), obj({'profiles':arr({'$ref':'#/$defs/DirectionProfile'})}, ['profiles'])))
@@ -512,29 +541,31 @@ rest = [
 ('/profiles/styles','get','profile.list_style_profiles','List style profiles','Profiles',None,obj({'profiles':arr(obj({'id':string(),'version':string(),'name':string(),'description':string()},['id','version','name']))},['profiles']),[]),
 ('/profiles/rigs','get','profile.list_rig_presets','List rig presets','Profiles',None,obj({'profiles':arr(obj({'id':string(),'version':string(),'name':string(),'description':string()},['id','version','name']))},['profiles']),[]),
 ('/profiles/motions','get','profile.list_motion_presets','List motion presets','Profiles',None,obj({'profiles':arr(obj({'id':string(),'version':string(),'name':string(),'description':string()},['id','version','name']))},['profiles']),[]),
-('/characters/{character_id}/base-views:generate','post','character.generate_base_views','Generate base views','Generation',obj({'views':arr(enum(DIRECTIONS),minItems=1,uniqueItems=True),'regenerate':boolean(),'seed':integer()},['views']),obj({'job':ref('Job')},['job']),['character_id']),
+('/characters/{character_id}/base-views:generate','post','character.generate_base_views','Generate base views','Generation',obj({'views':arr(enum(BASE_VIEWS),minItems=1,uniqueItems=True),'regenerate':boolean(),'seed':integer()},['views']),obj({'generation':ref('BaseViewGeneration'),'views':arr(ref('BaseView'))},['generation','views']),['character_id']),
 ('/characters/{character_id}/base-views:prepare','post','character.prepare_base_views','Prepare base views for ChatGPT Web','Generation',obj({'views':arr(enum(BASE_VIEWS),minItems=1,uniqueItems=True)},[]),obj({'generation':ref('BaseViewGeneration')},['generation']),['character_id']),
 ('/characters/{character_id}/base-views/{direction}:ingest','post','character.ingest_base_view','Ingest ChatGPT Web base view','Generation',obj({'generation_id':string(pattern='^gen_[A-Za-z0-9_-]+$'),'image_data_url':string(pattern='^data:image/png;base64,'),'provider':string(),'model':string(),'replace':boolean()},['generation_id','image_data_url']),obj({'view':ref('BaseView')},['view']),['character_id','direction']),
 ('/characters/{character_id}/base-views','get','character.get_base_views','Get base views','Generation',None,obj({'character_id':string(),'views':arr(ref('BaseView'))},['character_id','views']),['character_id']),
 ('/characters/{character_id}/base-views:validate','post','character.validate_base_views','Validate base views','Generation',obj({},[]),obj({'validation':ref('BaseViewValidation')},['validation']),['character_id']),
 ('/characters/{character_id}/base-views:mirror','post','character.generate_mirrored_views','Generate mirrored views','Generation',obj({'mirror_pairs':arr(mirror_pair,minItems=1)},['mirror_pairs']),obj({'job':ref('Job')},['job']),['character_id']),
 ('/characters/{character_id}/base-views/{direction}:regenerate','post','character.regenerate_view','Regenerate one view','Generation',obj({'seed':integer(),'reason':string()},[]),obj({'job':ref('Job')},['job']),['character_id','direction']),
-('/characters/{character_id}/parts:auto-segment','post','parts.auto_segment','Auto segment parts','Parts',obj({'source_direction':enum(BASE_VIEWS),'part_template':string(),'mode':enum(['auto','hybrid'])},['source_direction','part_template']),obj({'job':ref('Job')},['job']),['character_id']),
+('/characters/{character_id}/parts:auto-segment','post','parts.auto_segment','Auto segment parts','Parts',obj({'source_direction':enum(BASE_VIEWS),'part_template':string(default='biped_chibi_parts_v1'),'mode':enum(['auto','hybrid'])},['source_direction','part_template']),obj({'segmentation':ref('PartSegmentation')},['segmentation']),['character_id']),
 ('/characters/{character_id}/parts','get','parts.list','List parts','Parts',None,obj({'parts':arr(ref('PartAsset'))},['parts']),['character_id']),
-('/parts/{part_id}','get','parts.get','Get part','Parts',None,obj({'part':ref('PartAsset')},['part']),['part_id']),
-('/parts/{part_id}/mask','put','parts.update_mask','Update part mask','Parts',obj({'mask':mask_schema},['mask']),obj({'part':ref('PartAsset')},['part']),['part_id']),
-('/parts/{part_id}/approval','put','parts.approve','Approve part','Parts',obj({'approved':boolean()},['approved']),obj({'part':ref('PartAsset')},['part']),['part_id']),
+('/characters/{character_id}/parts/{part_id}','get','parts.get','Get part','Parts',None,obj({'part':ref('PartAsset'),'cutout_url':string(),'mask_url':string()},['part','cutout_url','mask_url']),['character_id','part_id']),
+('/characters/{character_id}/parts/{part_id}/mask','put','parts.update_mask','Update part mask','Parts',obj({'mask_data_url':string(pattern='^data:image/png;base64,')},['mask_data_url']),obj({'part':ref('PartAsset')},['part']),['character_id','part_id']),
+('/characters/{character_id}/parts/{part_id}:approve','post','parts.approve','Approve part','Parts',obj({'approved':boolean(default=True)},[]),obj({'part':ref('PartAsset')},['part']),['character_id','part_id']),
 ('/parts/{part_id}','delete','parts.delete','Delete part','Parts',None,ack_out,['part_id']),
-('/characters/{character_id}/parts','post','parts.create_manual','Create manual part','Parts',obj({'direction':enum(DIRECTIONS),'name':string(),'category':enum(['body_part','hair','equipment','shadow','fx','custom']),'image_asset_id':string(),'pivot':vec2},['direction','name','category','image_asset_id','pivot']),obj({'part':ref('PartAsset')},['part']),['character_id']),
+('/characters/{character_id}/parts:manual','post','parts.create_manual','Create manual part','Parts',obj({'direction':enum(BASE_VIEWS),'name':string(),'mask_data_url':string(pattern='^data:image/png;base64,'),'category':enum(['body_part','hair','equipment','shadow','fx','custom']),'pivot':vec2,'bone_hint':string(),'replace':boolean(default=False)},['direction','name','mask_data_url']),obj({'part':ref('PartAsset')},['part']),['character_id']),
+('/characters/{character_id}/parts/{part_id}/cutout','get','parts.get_cutout','Get part cutout','Parts',None,{'type':'string','contentMediaType':'image/png'},['character_id','part_id']),
+('/characters/{character_id}/parts/{part_id}/mask','get','parts.get_mask','Get part mask','Parts',None,{'type':'string','contentMediaType':'image/png'},['character_id','part_id']),
 ('/characters/{character_id}/rig','post','rig.create','Create rig','Rig',obj({'rig_preset':string(),'auto_bind':boolean()},['rig_preset']),obj({'rig':ref('Rig')},['rig']),['character_id']),
 ('/characters/{character_id}/rig','get','rig.get','Get rig','Rig',None,obj({'rig':ref('Rig')},['rig']),['character_id']),
 ('/rigs/{rig_id}/bones','get','rig.list_bones','List bones','Rig',None,obj({'bones':arr(ref('Bone'))},['bones']),['rig_id']),
 ('/rigs/{rig_id}/bones/{bone_name}','patch','rig.update_bone','Update bone','Rig',obj({'patch':obj(additional=True)},['patch']),obj({'rig':ref('Rig')},['rig']),['rig_id','bone_name']),
-('/rigs/{rig_id}:auto-bind','post','rig.auto_bind_parts','Auto bind parts','Rig',obj({'overwrite_existing':boolean()},[]),obj({'rig':ref('Rig'),'bound_part_ids':arr(string()),'unbound_part_ids':arr(string())},['rig','bound_part_ids','unbound_part_ids']),['rig_id']),
+('/characters/{character_id}/rig:auto-bind','post','rig.auto_bind_parts','Auto bind parts','Rig',obj({'overwrite_existing':boolean(default=False)},[]),obj({'rig':ref('Rig'),'bound_part_ids':arr(string()),'unbound_part_ids':arr(string()),'skipped_part_ids':arr(string()),'unmatched_bones':arr(string())},['rig','bound_part_ids','unbound_part_ids','skipped_part_ids','unmatched_bones']),['character_id']),
 ('/rigs/{rig_id}/bindings/{part_id}','put','rig.update_binding','Update binding','Rig',obj({'bone_name':string(),'pivot':vec2,'offset':transform2d,'weight_mode':enum(['rigid','weighted'])},['bone_name']),obj({'rig':ref('Rig')},['rig']),['rig_id','part_id']),
 ('/rigs/{rig_id}/sockets','post','rig.add_socket','Add socket','Rig',obj({'socket_name':string(),'bone_name':string(),'offset':transform2d,'slot_type':enum(SLOTS)},['socket_name','bone_name','slot_type']),obj({'rig':ref('Rig')},['rig']),['rig_id']),
 ('/rigs/{rig_id}/sockets/{socket_name}','patch','rig.update_socket','Update socket','Rig',obj({'patch':obj(additional=True)},['patch']),obj({'rig':ref('Rig')},['rig']),['rig_id','socket_name']),
-('/rigs/{rig_id}:validate','post','rig.validate','Validate rig','Rig',obj({},[]),validation_out,['rig_id']),
+('/characters/{character_id}/rig:validate','post','rig.validate','Validate rig','Rig',obj({},[]),validation_out,['character_id']),
 ('/characters/{character_id}/directions','post','direction.create_profiles','Create direction profiles','Directions',obj({'directions':arr(enum(DIRECTIONS),minItems=1,uniqueItems=True),'mirror_rules':arr(mirror_pair)},['directions']),obj({'profiles':arr(ref('DirectionProfile'))},['profiles']),['character_id']),
 ('/characters/{character_id}/directions/{direction}','get','direction.get_profile','Get direction profile','Directions',None,obj({'profile':ref('DirectionProfile')},['profile']),['character_id','direction']),
 ('/characters/{character_id}/directions/{direction}','patch','direction.update_profile','Update direction profile','Directions',obj({'patch':obj(additional=True)},['patch']),obj({'profile':ref('DirectionProfile')},['profile']),['character_id','direction']),
@@ -636,9 +667,10 @@ manifest={
         'transport':'stateless-http-json-rpc',
         'storage':'atomic-json-files',
         'implementedTools':[
-            'project.create','character.create_spec','character.get_spec',
-            'character.prepare_base_views','character.ingest_base_view',
-            'character.get_base_views','character.validate_base_views','rig.create'
+            'project.create','character.create_spec','character.get_spec','character.generate_base_views',
+            'character.prepare_base_views','character.ingest_base_view','character.get_base_views','character.validate_base_views',
+            'parts.auto_segment','parts.list','parts.get','parts.update_mask','parts.create_manual','parts.approve',
+            'rig.create','rig.get','rig.auto_bind_parts','rig.validate'
         ]
     }
 }
@@ -655,11 +687,14 @@ Executable tools in {VERSION}:
 - `project.create`
 - `character.create_spec`
 - `character.get_spec`
+- `character.generate_base_views` (when an image bridge is configured)
 - `character.prepare_base_views`
 - `character.ingest_base_view`
 - `character.get_base_views`
 - `character.validate_base_views`
-- `rig.create`
+- `parts.auto_segment`
+- `parts.list` / `parts.get` / `parts.update_mask` / `parts.create_manual` / `parts.approve`
+- `rig.create` / `rig.get` / `rig.auto_bind_parts` / `rig.validate`
 
 Run with `npm test` and `npm start`.
 
@@ -678,7 +713,7 @@ Defaults:
 4. `character.get_base_views` reads the stored views.
 5. `character.validate_base_views` checks missing views, PNG alpha capability, and source canvas size.
 
-The server does not call an image provider and does not require an image API key in this mode. Native ChatGPT image generation happens in the host. Automatic transfer of generated image bytes into MCP depends on host/file integration; the current transport accepts a PNG `image_data_url`, which a web editor or MCP App file bridge can provide.
+The default workflow remains ChatGPT Web-first and does not require an image API key. An optional HTTP image-generation bridge can be enabled with `CHARACTER_ASSET_IMAGE_BRIDGE_URL`; `character.generate_base_views` sends each locked prompt to that bridge and persists the returned PNG. The bridge must return a JSON object containing `image_data_url` as a PNG data URL, with optional `provider` and `model` fields.
 
 PNG files are stored at `data/characters/<character_id>/base_views/<direction>.png`. Prompt-generation records are stored under `base_view_generations/`.
 
@@ -687,11 +722,23 @@ PNG files are stored at `data/characters/<character_id>/base_views/<direction>.p
 - `POST /projects`
 - `POST /characters/specs`
 - `GET /characters/{{character_id}}/spec`
+- `POST /characters/{{character_id}}/base-views:generate` (optional image bridge)
 - `POST /characters/{{character_id}}/base-views:prepare`
 - `POST /characters/{{character_id}}/base-views/{{direction}}:ingest`
 - `GET /characters/{{character_id}}/base-views`
 - `POST /characters/{{character_id}}/base-views:validate`
+- `POST /characters/{{character_id}}/parts:auto-segment`
+- `GET /characters/{{character_id}}/parts`
+- `GET /characters/{{character_id}}/parts/{{part_id}}`
+- `PUT /characters/{{character_id}}/parts/{{part_id}}/mask`
+- `POST /characters/{{character_id}}/parts:manual`
+- `POST /characters/{{character_id}}/parts/{{part_id}}:approve`
+- `GET /characters/{{character_id}}/parts/{{part_id}}/cutout`
+- `GET /characters/{{character_id}}/parts/{{part_id}}/mask`
 - `POST /characters/{{character_id}}/rig`
+- `GET /characters/{{character_id}}/rig`
+- `POST /characters/{{character_id}}/rig:auto-bind`
+- `POST /characters/{{character_id}}/rig:validate`
 
 ## Standards and contracts
 
@@ -700,7 +747,7 @@ PNG files are stored at `data/characters/<character_id>/base_views/<direction>.p
 - MCP protocol target: 2026-07-28
 - MCP tool input/output schemas: JSON Schema Draft 2020-12
 
-The full catalog also keeps `character.generate_base_views` as a planned server-side/provider automation path. It is not executable in the current ChatGPT Web-first runtime.
+After base-view validation, the V1 workflow continues through `parts.auto_segment`, human mask review/approval, `rig.create`, `rig.auto_bind_parts`, and `rig.validate`. Low-resolution sources remain reviewable but emit an authoring-resolution warning.
 '''
 (ROOT/'README.md').write_text(readme)
 
