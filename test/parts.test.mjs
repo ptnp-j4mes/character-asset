@@ -188,25 +188,14 @@ test('humanoid compatibility rig auto-binds approved parts only and validates', 
   assert.ok(!validation.errors.length);
 });
 
-test('configured image bridge generates locked canonical views and ingests returned PNGs', async () => {
-  const calls = [];
-  const imageBridge = {
-    async generate(input) {
-      calls.push(input);
-      return {
-        image_data_url: pngDataUrl(128, 128),
-        provider: 'test-bridge',
-        model: 'mock-image-v1'
-      };
-    }
-  };
-  const root = await mkdtemp(join(tmpdir(), 'character-image-bridge-'));
-  const service = new CharacterAssetService(new JsonStore(root), { imageBridge });
-  const project = await service.createProject({ name: 'Bridge Demo' });
+test('ChatGPT Web companion handoff tracks next direction after local image ingest', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'character-companion-'));
+  const service = new CharacterAssetService(new JsonStore(root));
+  const project = await service.createProject({ name: 'Companion Demo' });
   await service.createCharacterSpec({
     project_id: project.project_id,
-    character_id: 'char_bridge_001',
-    name: 'Bridge Hero',
+    character_id: 'char_companion_001',
+    name: 'Companion Hero',
     style_profile: '2.5d',
     proportion_profile: 'chibi',
     views_required: ['S', 'SW'],
@@ -214,13 +203,24 @@ test('configured image bridge generates locked canonical views and ingests retur
     motion_preset: 'walk'
   });
 
-  const generated = await service.generateBaseViews({
-    character_id: 'char_bridge_001',
-    views: ['S', 'SW']
+  const started = await service.beginImageHandoff({ character_id: 'char_companion_001', views: ['S', 'SW'] });
+  assert.equal(started.handoff.source, 'chatgpt-web-companion');
+  assert.equal(started.handoff.next_direction, 'S');
+
+  const first = await service.ingestCompanionImage({
+    handoff_id: started.handoff.handoff_id,
+    direction: 'S',
+    image_data_url: pngDataUrl(128, 128)
   });
-  assert.equal(calls.length, 2);
-  assert.deepEqual(calls.map((call) => call.direction), ['S', 'SW']);
-  assert.equal(generated.generation.generator, 'image-bridge');
-  assert.equal(generated.views.length, 2);
-  assert.ok(generated.views.every((view) => view.provenance.provider === 'test-bridge'));
+  assert.equal(first.view.provenance.provider, 'chatgpt-web-companion');
+  assert.equal(first.handoff.next_direction, 'SW');
+  assert.deepEqual(first.handoff.received_views, ['S']);
+
+  const second = await service.ingestCompanionImage({
+    handoff_id: started.handoff.handoff_id,
+    image_data_url: pngDataUrl(128, 128)
+  });
+  assert.equal(second.handoff.status, 'completed');
+  assert.equal(second.handoff.next_direction, null);
+  assert.deepEqual(second.handoff.received_views, ['S', 'SW']);
 });

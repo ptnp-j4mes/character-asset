@@ -1209,130 +1209,6 @@
         }
       }
     },
-    "/characters/{character_id}/base-views:generate": {
-      "post": {
-        "operationId": "character.generate_base_views",
-        "summary": "Generate base views",
-        "tags": [
-          "Generation"
-        ],
-        "parameters": [
-          {
-            "name": "character_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "views": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "enum": [
-                        "S",
-                        "SW",
-                        "W",
-                        "NW",
-                        "N"
-                      ]
-                    },
-                    "minItems": 1,
-                    "uniqueItems": true
-                  },
-                  "regenerate": {
-                    "type": "boolean"
-                  },
-                  "seed": {
-                    "type": "integer"
-                  }
-                },
-                "additionalProperties": false,
-                "required": [
-                  "views"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "generation": {
-                      "$ref": "#/components/schemas/BaseViewGeneration"
-                    },
-                    "views": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/BaseView"
-                      }
-                    }
-                  },
-                  "additionalProperties": false,
-                  "required": [
-                    "generation",
-                    "views"
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Resource not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/characters/{character_id}/base-views:prepare": {
       "post": {
         "operationId": "character.prepare_base_views",
@@ -1393,6 +1269,202 @@
                   "additionalProperties": false,
                   "required": [
                     "generation"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/characters/{character_id}/image-handoffs": {
+      "post": {
+        "operationId": "character.begin_image_handoff",
+        "summary": "Begin ChatGPT Web image handoff",
+        "tags": [
+          "Generation"
+        ],
+        "parameters": [
+          {
+            "name": "character_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "generation_id": {
+                    "type": "string",
+                    "pattern": "^gen_[A-Za-z0-9_-]+$"
+                  },
+                  "views": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "S",
+                        "SW",
+                        "W",
+                        "NW",
+                        "N"
+                      ]
+                    },
+                    "minItems": 1,
+                    "uniqueItems": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "handoff": {
+                      "$ref": "#/components/schemas/ImageHandoff"
+                    },
+                    "generation": {
+                      "$ref": "#/components/schemas/BaseViewGeneration"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "handoff",
+                    "generation"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/image-handoffs/{handoff_id}": {
+      "get": {
+        "operationId": "character.get_image_handoff",
+        "summary": "Get image handoff",
+        "tags": [
+          "Generation"
+        ],
+        "parameters": [
+          {
+            "name": "handoff_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "handoff": {
+                      "$ref": "#/components/schemas/ImageHandoff"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "handoff"
                   ]
                 }
               }
@@ -7727,6 +7799,103 @@
           "required_views",
           "warnings",
           "errors"
+        ]
+      },
+      "ImageHandoff": {
+        "type": "object",
+        "properties": {
+          "handoff_id": {
+            "type": "string",
+            "pattern": "^handoff_[A-Za-z0-9_-]+$"
+          },
+          "character_id": {
+            "type": "string",
+            "pattern": "^char_[A-Za-z0-9_-]+$"
+          },
+          "generation_id": {
+            "type": "string",
+            "pattern": "^gen_[A-Za-z0-9_-]+$"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "chatgpt-web-companion"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "completed"
+            ]
+          },
+          "requested_views": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "S",
+                "SW",
+                "W",
+                "NW",
+                "N"
+              ]
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "received_views": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "S",
+                "SW",
+                "W",
+                "NW",
+                "N"
+              ]
+            },
+            "uniqueItems": true
+          },
+          "next_direction": {
+            "oneOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "S",
+                  "SW",
+                  "W",
+                  "NW",
+                  "N"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "handoff_id",
+          "character_id",
+          "generation_id",
+          "source",
+          "status",
+          "requested_views",
+          "received_views",
+          "next_direction",
+          "created_at",
+          "updated_at"
         ]
       },
       "PartAsset": {

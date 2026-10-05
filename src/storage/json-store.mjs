@@ -41,6 +41,10 @@ export class JsonStore {
     return join(this.characterDir(characterId), 'base_views', `${direction}.png`);
   }
 
+  handoffPath(characterId, handoffId) {
+    return join(this.characterDir(characterId), 'handoffs', `${handoffId}.json`);
+  }
+
   partDir(characterId, direction, partName) {
     return join(this.characterDir(characterId), 'parts', direction, partName);
   }
@@ -104,6 +108,18 @@ export class JsonStore {
     return this.write(this.projectPath(project.project_id), project);
   }
 
+  async listProjects() {
+    const root = join(this.rootDir, 'projects');
+    let names;
+    try {
+      names = await readdir(root);
+    } catch (error) {
+      if (error?.code === 'ENOENT') return [];
+      throw error;
+    }
+    return Promise.all(names.filter((name) => name.endsWith('.json')).map((name) => this.read(join(root, name))));
+  }
+
   getCharacterSpec(characterId) {
     return this.read(this.specPath(characterId));
   }
@@ -134,6 +150,41 @@ export class JsonStore {
 
   saveBaseViewGeneration(generation) {
     return this.write(this.baseViewGenerationPath(generation.character_id, generation.generation_id), generation);
+  }
+
+
+  getHandoff(characterId, handoffId) {
+    return this.read(this.handoffPath(characterId, handoffId));
+  }
+
+  saveHandoff(handoff) {
+    return this.write(this.handoffPath(handoff.character_id, handoff.handoff_id), handoff);
+  }
+
+  async listHandoffs(characterId) {
+    const root = join(this.characterDir(characterId), 'handoffs');
+    let names;
+    try { names = await readdir(root); } catch (error) {
+      if (error?.code === 'ENOENT') return [];
+      throw error;
+    }
+    return Promise.all(names.filter((name) => name.endsWith('.json')).map((name) => this.read(join(root, name))));
+  }
+
+  async findHandoff(handoffId) {
+    for (const characterId of await this.listCharacterIds()) {
+      const handoff = await this.getHandoff(characterId, handoffId);
+      if (handoff) return handoff;
+    }
+    return null;
+  }
+
+  async listActiveHandoffs() {
+    const values = [];
+    for (const characterId of await this.listCharacterIds()) {
+      values.push(...await this.listHandoffs(characterId));
+    }
+    return values.filter((value) => value?.status === 'active').sort((a, b) => b.updated_at.localeCompare(a.updated_at));
   }
 
   getBaseView(characterId, direction) {

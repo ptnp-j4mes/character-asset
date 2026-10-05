@@ -71,6 +71,33 @@ function ensurePartCharacter(part, characterId) {
 }
 
 export async function handleRest(req, res, url, service) {
+
+  if (req.method === 'GET' && url.pathname === '/companion/handoffs/active') {
+    sendJson(res, 200, { handoff: await service.getActiveImageHandoff() });
+    return true;
+  }
+
+  const companionHandoffMatch = url.pathname.match(/^\/companion\/handoffs\/([^/]+)$/);
+  if (req.method === 'GET' && companionHandoffMatch) {
+    sendJson(res, 200, { handoff: await service.getImageHandoff(decodeURIComponent(companionHandoffMatch[1])) });
+    return true;
+  }
+
+  const companionImageMatch = url.pathname.match(/^\/companion\/handoffs\/([^/]+)\/images\/([^/]+)$/);
+  if (req.method === 'POST' && companionImageMatch) {
+    const body = await readJsonBody(req, { maxBytes: MAX_IMAGE_BODY_BYTES });
+    sendJson(res, 201, await service.ingestCompanionImage({
+      ...body,
+      handoff_id: decodeURIComponent(companionImageMatch[1]),
+      direction: decodeURIComponent(companionImageMatch[2])
+    }));
+    return true;
+  }
+  if (req.method === 'GET' && url.pathname === '/projects') {
+    sendJson(res, 200, { projects: await service.listProjects() });
+    return true;
+  }
+
   if (req.method === 'POST' && url.pathname === '/projects') {
     sendJson(res, 201, { project: await service.createProject(await readJsonBody(req)) });
     return true;
@@ -87,13 +114,19 @@ export async function handleRest(req, res, url, service) {
     return true;
   }
 
-  const generateBaseViewsMatch = url.pathname.match(/^\/characters\/([^/]+)\/base-views:generate$/);
-  if (req.method === 'POST' && generateBaseViewsMatch) {
+  const beginHandoffMatch = url.pathname.match(/^\/characters\/([^/]+)\/image-handoffs$/);
+  if (req.method === 'POST' && beginHandoffMatch) {
     const body = await readJsonBody(req);
-    sendJson(res, 201, await service.generateBaseViews({
+    sendJson(res, 201, await service.beginImageHandoff({
       ...body,
-      character_id: decodeURIComponent(generateBaseViewsMatch[1])
+      character_id: decodeURIComponent(beginHandoffMatch[1])
     }));
+    return true;
+  }
+
+  const getHandoffMatch = url.pathname.match(/^\/image-handoffs\/([^/]+)$/);
+  if (req.method === 'GET' && getHandoffMatch) {
+    sendJson(res, 200, { handoff: await service.getImageHandoff(decodeURIComponent(getHandoffMatch[1])) });
     return true;
   }
 

@@ -172,9 +172,8 @@ function emptyOffset() {
 }
 
 export class CharacterAssetService {
-  constructor(store, { imageBridge = null } = {}) {
+  constructor(store) {
     this.store = store;
-    this.imageBridge = imageBridge;
   }
 
   async createProject(input) {
@@ -190,6 +189,22 @@ export class CharacterAssetService {
     if (project.description?.length > 2000) invalid('description exceeds maximum length', { field: 'description', maxLength: 2000 });
     await this.store.saveProject(project);
     return project;
+  }
+
+  async listProjects() {
+    const [projects, characterIds] = await Promise.all([
+      this.store.listProjects(),
+      this.store.listCharacterIds()
+    ]);
+    const specs = await Promise.all(characterIds.map((characterId) => this.store.getCharacterSpec(characterId)));
+    return projects.filter(Boolean).map((project) => ({
+      ...project,
+      characters: specs.filter((spec) => spec?.project_id === project.project_id).map(({ character_id, name, updated_at }) => ({
+        character_id,
+        name,
+        updated_at
+      }))
+    })).sort((a, b) => b.created_at.localeCompare(a.created_at));
   }
 
   async createCharacterSpec(input) {
@@ -302,45 +317,82 @@ export class CharacterAssetService {
     ].filter(Boolean).join(' ');
   }
 
-  async generateBaseViews(input) {
-    if (!this.imageBridge?.generate) {
-      throw new CharacterAssetError(
-        'UNSUPPORTED_OPERATION',
-        'No image-generation bridge is configured. Set CHARACTER_ASSET_IMAGE_BRIDGE_URL or inject an image bridge.',
-        { operation: 'character.generate_base_views' }
-      );
-    }
-
+  async beginImageHandoff(input) {
     const characterId = requireId(input?.character_id, 'character_id', ID_PATTERNS.character);
-    const views = uniqueEnumArray(input?.views, 'views', BASE_DIRECTION_SET, { minItems: 1 });
-    const generation = await this.prepareBaseViews({ character_id: characterId, views });
-    generation.generator = 'image-bridge';
-    await this.store.saveBaseViewGeneration(generation);
+    await this.getCharacterSpec(characterId);
 
-    const saved = [];
-    for (const view of generation.views) {
-      const generated = await this.imageBridge.generate({
-        character_id: characterId,
-        generation_id: generation.generation_id,
-        direction: view.direction,
-        prompt: view.prompt,
-        output_constraints: generation.character_lock.output_constraints,
-        ...(input?.seed === undefined ? {} : { seed: input.seed })
-      });
-      if (!generated?.image_data_url) {
-        throw new CharacterAssetError('INTERNAL_ERROR', 'Image-generation bridge returned no PNG data URL', { direction: view.direction });
-      }
-      saved.push(await this.ingestBaseView({
-        character_id: characterId,
-        generation_id: generation.generation_id,
-        direction: view.direction,
-        image_data_url: generated.image_data_url,
-        provider: generated.provider ?? 'image-bridge',
-        ...(generated.model ? { model: generated.model } : {}),
-        replace: input?.regenerate === true
-      }));
+    let generation;
+    if (input?.generation_id) {
+      const generationId = requireId(input.generation_id, 'generation_id', ID_PATTERNS.generation);
+      generation = await this.store.getBaseViewGeneration(characterId, generationId);
+      if (!generation) throw new CharacterAssetError('NOT_FOUND', `Generation ${generationId} was not found`, { generation_id: generationId });
+    } else {
+      generation = await this.prepareBaseViews({ character_id: characterId, ...(input?.views ? { views: input.views } : {}) });
     }
-    return { generation, views: saved };
+
+    const requestedViews = generation.views.map((view) => view.direction);
+    const stored = await this.store.listBaseViews(characterId);
+    const receivedViews = requestedViews.filter((direction) => stored.some((view) => view.direction === direction));
+    const timestamp = now();
+    const handoff = {
+      handoff_id: id('handoff'),
+      character_id: characterId,
+      generation_id: generation.generation_id,
+      source: 'chatgpt-web-companion',
+      status: receivedViews.length === requestedViews.length ? 'completed' : 'active',
+      requested_views: requestedViews,
+      received_views: receivedViews,
+      next_direction: requestedViews.find((direction) => !receivedViews.includes(direction)) ?? null,
+      created_at: timestamp,
+      updated_at: timestamp
+    };
+    await this.store.saveHandoff(handoff);
+    return { handoff, generation };
+  }
+
+  async getImageHandoff(handoffId) {
+    if (typeof handoffId !== 'string' || !/^handoff_[A-Za-z0-9_-]+$/.test(handoffId)) invalid('handoff_id has an invalid format', { field: 'handoff_id' });
+    const handoff = await this.store.findHandoff(handoffId);
+    if (!handoff) throw new CharacterAssetError('NOT_FOUND', `Handoff ${handoffId} was not found`, { handoff_id: handoffId });
+    return this.#refreshHandoff(handoff);
+  }
+
+  async getActiveImageHandoff() {
+    const active = await this.store.listActiveHandoffs();
+    if (!active.length) return null;
+    return this.#refreshHandoff(active[0]);
+  }
+
+  async #refreshHandoff(handoff) {
+    const views = await this.store.listBaseViews(handoff.character_id);
+    const receivedViews = handoff.requested_views.filter((direction) => views.some((view) => view.direction === direction));
+    const updated = {
+      ...handoff,
+      received_views: receivedViews,
+      next_direction: handoff.requested_views.find((direction) => !receivedViews.includes(direction)) ?? null,
+      status: receivedViews.length === handoff.requested_views.length ? 'completed' : 'active',
+      updated_at: now()
+    };
+    await this.store.saveHandoff(updated);
+    return updated;
+  }
+
+  async ingestCompanionImage(input) {
+    const handoff = await this.getImageHandoff(input?.handoff_id);
+    if (handoff.status === 'completed') {
+      throw new CharacterAssetError('CONFLICT', `Handoff ${handoff.handoff_id} is already complete`, { handoff_id: handoff.handoff_id });
+    }
+    const direction = requireDirection(input?.direction ?? handoff.next_direction, { canonical: true });
+    if (!handoff.requested_views.includes(direction)) invalid(`Direction ${direction} is not part of this handoff`, { direction });
+    const view = await this.ingestBaseView({
+      character_id: handoff.character_id,
+      generation_id: handoff.generation_id,
+      direction,
+      image_data_url: input?.image_data_url,
+      provider: 'chatgpt-web-companion',
+      replace: input?.replace === true
+    });
+    return { view, handoff: await this.getImageHandoff(handoff.handoff_id) };
   }
 
   async ingestBaseView(input) {

@@ -9,8 +9,8 @@ Executable tools in 0.3.0:
 - `project.create`
 - `character.create_spec`
 - `character.get_spec`
-- `character.generate_base_views` (when an image bridge is configured)
 - `character.prepare_base_views`
+- `character.begin_image_handoff` / `character.get_image_handoff`
 - `character.ingest_base_view`
 - `character.get_base_views`
 - `character.validate_base_views`
@@ -35,7 +35,17 @@ Defaults:
 4. `character.get_base_views` reads the stored views.
 5. `character.validate_base_views` checks missing views, PNG alpha capability, and source canvas size.
 
-The default workflow remains ChatGPT Web-first and does not require an image API key. An optional HTTP image-generation bridge can be enabled with `CHARACTER_ASSET_IMAGE_BRIDGE_URL`; `character.generate_base_views` sends each locked prompt to that bridge and persists the returned PNG. The bridge must return a JSON object containing `image_data_url` as a PNG data URL, with optional `provider` and `model` fields.
+The workflow is ChatGPT Web-first and does not require an image API key. `character.begin_image_handoff` opens a local browser-companion session. The unpacked browser extension in `browser-extension/` adds a Send to Character-Asset control to large images in ChatGPT Web and transfers the PNG to the local Character-Asset server, which ingests it with `chatgpt-web-companion` provenance. `character.get_image_handoff` lets ChatGPT read progress and the next expected direction.
+
+### ChatGPT Web Companion setup
+
+1. Start Character-Asset locally with `npm start` (default `http://127.0.0.1:8787`).
+2. In Chrome/Edge, open Extensions, enable Developer mode, choose **Load unpacked**, and select the repository `browser-extension/` folder.
+3. From ChatGPT, call `character.begin_image_handoff` after the character spec is ready. The tool returns the locked generation prompts plus a handoff id.
+4. Generate the requested view with ChatGPT native image generation. Hover the generated image and click **Send to Character-Asset**.
+5. The extension sends the image to the active handoff's `next_direction`; ChatGPT can call `character.get_image_handoff` to read progress and continue with the next view.
+
+No OpenAI API key is required for this path. The extension only talks to ChatGPT Web and the local Character-Asset server.
 
 PNG files are stored at `data/characters/<character_id>/base_views/<direction>.png`. Prompt-generation records are stored under `base_view_generations/`.
 
@@ -44,7 +54,8 @@ PNG files are stored at `data/characters/<character_id>/base_views/<direction>.p
 - `POST /projects`
 - `POST /characters/specs`
 - `GET /characters/{character_id}/spec`
-- `POST /characters/{character_id}/base-views:generate` (optional image bridge)
+- `POST /characters/{character_id}/image-handoffs`
+- `GET /image-handoffs/{handoff_id}`
 - `POST /characters/{character_id}/base-views:prepare`
 - `POST /characters/{character_id}/base-views/{direction}:ingest`
 - `GET /characters/{character_id}/base-views`

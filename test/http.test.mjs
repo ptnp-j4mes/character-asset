@@ -79,6 +79,17 @@ test('REST routes share the domain service for project, spec, get, and rig', asy
   assert.equal(specResponse.status, 201);
   assert.equal(specResponse.body.spec.character_id, 'char_rest_001');
 
+  const projectsResponse = await json(await fetch(`${base}/projects`));
+  assert.equal(projectsResponse.status, 200);
+  assert.deepEqual(projectsResponse.body.projects, [{
+    ...project,
+    characters: [{
+      character_id: 'char_rest_001',
+      name: 'REST Novice',
+      updated_at: specResponse.body.spec.updated_at
+    }]
+  }]);
+
   const getResponse = await json(await fetch(`${base}/characters/char_rest_001/spec`));
   assert.equal(getResponse.status, 200);
   assert.deepEqual(getResponse.body.spec, specResponse.body.spec);
@@ -125,8 +136,9 @@ test('MCP endpoint serves discover, tools/list, and tools/call over stateless HT
     'project.create',
     'character.create_spec',
     'character.get_spec',
-    'character.generate_base_views',
     'character.prepare_base_views',
+    'character.begin_image_handoff',
+    'character.get_image_handoff',
     'character.ingest_base_view',
     'character.get_base_views',
     'character.validate_base_views',

@@ -137,6 +137,18 @@ schemas['BaseViewValidation'] = obj({
     'warnings': arr(string()), 'errors': arr(string()), 'next_tool': string()
 }, ['valid','score','views_checked','required_views','warnings','errors'])
 
+schemas['ImageHandoff'] = obj({
+    'handoff_id': string(pattern='^handoff_[A-Za-z0-9_-]+$'),
+    'character_id': string(pattern='^char_[A-Za-z0-9_-]+$'),
+    'generation_id': string(pattern='^gen_[A-Za-z0-9_-]+$'),
+    'source': enum(['chatgpt-web-companion']),
+    'status': enum(['active','completed']),
+    'requested_views': arr(enum(BASE_VIEWS), minItems=1, uniqueItems=True),
+    'received_views': arr(enum(BASE_VIEWS), uniqueItems=True),
+    'next_direction': {'oneOf':[enum(BASE_VIEWS), {'type':'null'}]},
+    'created_at': string(format='date-time'), 'updated_at': string(format='date-time')
+}, ['handoff_id','character_id','generation_id','source','status','requested_views','received_views','next_direction','created_at','updated_at'])
+
 part_bounds = obj({
     'x': integer(minimum=0), 'y': integer(minimum=0),
     'width': integer(minimum=0), 'height': integer(minimum=0)
@@ -277,6 +289,7 @@ standalone_map = {
     'base-view.schema.json':'BaseView',
     'base-view-generation.schema.json':'BaseViewGeneration',
     'base-view-validation.schema.json':'BaseViewValidation',
+    'image-handoff.schema.json':'ImageHandoff',
     'part-asset.schema.json':'PartAsset',
     'part-segmentation.schema.json':'PartSegmentation',
     'rig.schema.json':'Rig',
@@ -397,8 +410,9 @@ ingest_base_view_input = obj({
     'model':string(),
     'replace':boolean(default=False)
 }, ['character_id','generation_id','direction','image_data_url'])
-add(tool('character.generate_base_views','Generate base views','Generate canonical base views through the configured image-generation bridge, then persist the returned PNGs.', obj({'character_id':id_char,'views':arr(enum(BASE_VIEWS),minItems=1,uniqueItems=True),'regenerate':boolean(default=False),'seed':integer()}, ['character_id','views']), obj({'generation':{'$ref':'#/$defs/BaseViewGeneration'},'views':arr({'$ref':'#/$defs/BaseView'})}, ['generation','views'])))
 add(tool('character.prepare_base_views','Prepare base views for ChatGPT Web','Build and persist locked prompts for ChatGPT Web/native image generation without calling an image provider from the server.', prepare_base_views_input, obj({'generation':{'$ref':'#/$defs/BaseViewGeneration'}}, ['generation'])))
+add(tool('character.begin_image_handoff','Begin ChatGPT Web image handoff','Create a browser-companion handoff session for an existing or newly prepared generation.', obj({'character_id':id_char,'generation_id':string(pattern='^gen_[A-Za-z0-9_-]+$'),'views':arr(enum(BASE_VIEWS),minItems=1,uniqueItems=True)}, ['character_id']), obj({'handoff':{'$ref':'#/$defs/ImageHandoff'},'generation':{'$ref':'#/$defs/BaseViewGeneration'}}, ['handoff','generation'])))
+add(tool('character.get_image_handoff','Get image handoff','Read current browser-companion handoff state and the next expected direction.', obj({'handoff_id':string(pattern='^handoff_[A-Za-z0-9_-]+$')}, ['handoff_id']), obj({'handoff':{'$ref':'#/$defs/ImageHandoff'}}, ['handoff']), read=True, idempotent=True))
 add(tool('character.ingest_base_view','Ingest ChatGPT Web base view','Persist one PNG produced by ChatGPT Web/native image generation and attach generation provenance.', ingest_base_view_input, obj({'view':{'$ref':'#/$defs/BaseView'}}, ['view'])))
 add(tool('character.get_base_views','Get base views','Read generated or ingested base-view assets.', obj({'character_id':id_char}, ['character_id']), obj({'character_id':id_char,'views':arr({'$ref':'#/$defs/BaseView'})}, ['character_id','views']), read=True, idempotent=True))
 add(tool('character.validate_base_views','Validate base views','Check required canonical views, PNG alpha capability, and source canvas size before segmentation.', obj({'character_id':id_char}, ['character_id']), obj({'validation':{'$ref':'#/$defs/BaseViewValidation'}}, ['validation']), read=True, idempotent=True))
@@ -541,8 +555,9 @@ rest = [
 ('/profiles/styles','get','profile.list_style_profiles','List style profiles','Profiles',None,obj({'profiles':arr(obj({'id':string(),'version':string(),'name':string(),'description':string()},['id','version','name']))},['profiles']),[]),
 ('/profiles/rigs','get','profile.list_rig_presets','List rig presets','Profiles',None,obj({'profiles':arr(obj({'id':string(),'version':string(),'name':string(),'description':string()},['id','version','name']))},['profiles']),[]),
 ('/profiles/motions','get','profile.list_motion_presets','List motion presets','Profiles',None,obj({'profiles':arr(obj({'id':string(),'version':string(),'name':string(),'description':string()},['id','version','name']))},['profiles']),[]),
-('/characters/{character_id}/base-views:generate','post','character.generate_base_views','Generate base views','Generation',obj({'views':arr(enum(BASE_VIEWS),minItems=1,uniqueItems=True),'regenerate':boolean(),'seed':integer()},['views']),obj({'generation':ref('BaseViewGeneration'),'views':arr(ref('BaseView'))},['generation','views']),['character_id']),
 ('/characters/{character_id}/base-views:prepare','post','character.prepare_base_views','Prepare base views for ChatGPT Web','Generation',obj({'views':arr(enum(BASE_VIEWS),minItems=1,uniqueItems=True)},[]),obj({'generation':ref('BaseViewGeneration')},['generation']),['character_id']),
+('/characters/{character_id}/image-handoffs','post','character.begin_image_handoff','Begin ChatGPT Web image handoff','Generation',obj({'generation_id':string(pattern='^gen_[A-Za-z0-9_-]+$'),'views':arr(enum(BASE_VIEWS),minItems=1,uniqueItems=True)},[]),obj({'handoff':ref('ImageHandoff'),'generation':ref('BaseViewGeneration')},['handoff','generation']),['character_id']),
+('/image-handoffs/{handoff_id}','get','character.get_image_handoff','Get image handoff','Generation',None,obj({'handoff':ref('ImageHandoff')},['handoff']),['handoff_id']),
 ('/characters/{character_id}/base-views/{direction}:ingest','post','character.ingest_base_view','Ingest ChatGPT Web base view','Generation',obj({'generation_id':string(pattern='^gen_[A-Za-z0-9_-]+$'),'image_data_url':string(pattern='^data:image/png;base64,'),'provider':string(),'model':string(),'replace':boolean()},['generation_id','image_data_url']),obj({'view':ref('BaseView')},['view']),['character_id','direction']),
 ('/characters/{character_id}/base-views','get','character.get_base_views','Get base views','Generation',None,obj({'character_id':string(),'views':arr(ref('BaseView'))},['character_id','views']),['character_id']),
 ('/characters/{character_id}/base-views:validate','post','character.validate_base_views','Validate base views','Generation',obj({},[]),obj({'validation':ref('BaseViewValidation')},['validation']),['character_id']),
@@ -667,8 +682,8 @@ manifest={
         'transport':'stateless-http-json-rpc',
         'storage':'atomic-json-files',
         'implementedTools':[
-            'project.create','character.create_spec','character.get_spec','character.generate_base_views',
-            'character.prepare_base_views','character.ingest_base_view','character.get_base_views','character.validate_base_views',
+            'project.create','character.create_spec','character.get_spec',
+            'character.prepare_base_views','character.begin_image_handoff','character.get_image_handoff','character.ingest_base_view','character.get_base_views','character.validate_base_views',
             'parts.auto_segment','parts.list','parts.get','parts.update_mask','parts.create_manual','parts.approve',
             'rig.create','rig.get','rig.auto_bind_parts','rig.validate'
         ]
@@ -687,8 +702,8 @@ Executable tools in {VERSION}:
 - `project.create`
 - `character.create_spec`
 - `character.get_spec`
-- `character.generate_base_views` (when an image bridge is configured)
 - `character.prepare_base_views`
+- `character.begin_image_handoff` / `character.get_image_handoff`
 - `character.ingest_base_view`
 - `character.get_base_views`
 - `character.validate_base_views`
@@ -713,7 +728,17 @@ Defaults:
 4. `character.get_base_views` reads the stored views.
 5. `character.validate_base_views` checks missing views, PNG alpha capability, and source canvas size.
 
-The default workflow remains ChatGPT Web-first and does not require an image API key. An optional HTTP image-generation bridge can be enabled with `CHARACTER_ASSET_IMAGE_BRIDGE_URL`; `character.generate_base_views` sends each locked prompt to that bridge and persists the returned PNG. The bridge must return a JSON object containing `image_data_url` as a PNG data URL, with optional `provider` and `model` fields.
+The workflow is ChatGPT Web-first and does not require an image API key. `character.begin_image_handoff` opens a local browser-companion session. The unpacked browser extension in `browser-extension/` adds a Send to Character-Asset control to large images in ChatGPT Web and transfers the PNG to the local Character-Asset server, which ingests it with `chatgpt-web-companion` provenance. `character.get_image_handoff` lets ChatGPT read progress and the next expected direction.
+
+### ChatGPT Web Companion setup
+
+1. Start Character-Asset locally with `npm start` (default `http://127.0.0.1:8787`).
+2. In Chrome/Edge, open Extensions, enable Developer mode, choose **Load unpacked**, and select the repository `browser-extension/` folder.
+3. From ChatGPT, call `character.begin_image_handoff` after the character spec is ready. The tool returns the locked generation prompts plus a handoff id.
+4. Generate the requested view with ChatGPT native image generation. Hover the generated image and click **Send to Character-Asset**.
+5. The extension sends the image to the active handoff's `next_direction`; ChatGPT can call `character.get_image_handoff` to read progress and continue with the next view.
+
+No OpenAI API key is required for this path. The extension only talks to ChatGPT Web and the local Character-Asset server.
 
 PNG files are stored at `data/characters/<character_id>/base_views/<direction>.png`. Prompt-generation records are stored under `base_view_generations/`.
 
@@ -722,7 +747,8 @@ PNG files are stored at `data/characters/<character_id>/base_views/<direction>.p
 - `POST /projects`
 - `POST /characters/specs`
 - `GET /characters/{{character_id}}/spec`
-- `POST /characters/{{character_id}}/base-views:generate` (optional image bridge)
+- `POST /characters/{{character_id}}/image-handoffs`
+- `GET /image-handoffs/{{handoff_id}}`
 - `POST /characters/{{character_id}}/base-views:prepare`
 - `POST /characters/{{character_id}}/base-views/{{direction}}:ingest`
 - `GET /characters/{{character_id}}/base-views`

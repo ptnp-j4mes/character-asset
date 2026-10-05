@@ -8,9 +8,9 @@
     "jsonSchema": "2020-12"
   },
   "counts": {
-    "mcpTools": 64,
-    "openapiPaths": 58,
-    "sharedSchemas": 14
+    "mcpTools": 65,
+    "openapiPaths": 59,
+    "sharedSchemas": 15
   },
   "files": {
     "openapi": "openapi/character-asset.openapi.json",
@@ -25,6 +25,7 @@
       "direction-profile.schema.json",
       "equipment-item.schema.json",
       "export-package.schema.json",
+      "image-handoff.schema.json",
       "job.schema.json",
       "part-asset.schema.json",
       "part-segmentation.schema.json",
@@ -44,8 +45,9 @@
       "project.create",
       "character.create_spec",
       "character.get_spec",
-      "character.generate_base_views",
       "character.prepare_base_views",
+      "character.begin_image_handoff",
+      "character.get_image_handoff",
       "character.ingest_base_view",
       "character.get_base_views",
       "character.validate_base_views",

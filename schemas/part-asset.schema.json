@@ -742,6 +742,103 @@
         "errors"
       ]
     },
+    "ImageHandoff": {
+      "type": "object",
+      "properties": {
+        "handoff_id": {
+          "type": "string",
+          "pattern": "^handoff_[A-Za-z0-9_-]+$"
+        },
+        "character_id": {
+          "type": "string",
+          "pattern": "^char_[A-Za-z0-9_-]+$"
+        },
+        "generation_id": {
+          "type": "string",
+          "pattern": "^gen_[A-Za-z0-9_-]+$"
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "chatgpt-web-companion"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "active",
+            "completed"
+          ]
+        },
+        "requested_views": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "S",
+              "SW",
+              "W",
+              "NW",
+              "N"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "received_views": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "S",
+              "SW",
+              "W",
+              "NW",
+              "N"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "next_direction": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "S",
+                "SW",
+                "W",
+                "NW",
+                "N"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "handoff_id",
+        "character_id",
+        "generation_id",
+        "source",
+        "status",
+        "requested_views",
+        "received_views",
+        "next_direction",
+        "created_at",
+        "updated_at"
+      ]
+    },
     "PartSegmentation": {
       "type": "object",
       "properties": {

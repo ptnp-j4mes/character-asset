@@ -9,8 +9,9 @@ const handlers = {
   'project.create': async (service, args) => ({ project: await service.createProject(args) }),
   'character.create_spec': async (service, args) => ({ spec: await service.createCharacterSpec(args) }),
   'character.get_spec': async (service, args) => ({ spec: await service.getCharacterSpec(args?.character_id) }),
-  'character.generate_base_views': async (service, args) => service.generateBaseViews(args),
   'character.prepare_base_views': async (service, args) => ({ generation: await service.prepareBaseViews(args) }),
+  'character.begin_image_handoff': async (service, args) => service.beginImageHandoff(args),
+  'character.get_image_handoff': async (service, args) => ({ handoff: await service.getImageHandoff(args?.handoff_id) }),
   'character.ingest_base_view': async (service, args) => ({ view: await service.ingestBaseView(args) }),
   'character.get_base_views': async (service, args) => service.getBaseViews(args?.character_id),
   'character.validate_base_views': async (service, args) => ({ validation: await service.validateBaseViews(args) }),
@@ -81,7 +82,7 @@ export function createCharacterAssetMcpRouter(service) {
           resultType: 'complete',
           supportedVersions: [MCP_PROTOCOL_VERSION],
           capabilities: { tools: { listChanged: false } },
-          instructions: 'Use Character-Asset tools to create structured 2.5D character specs, prepare or bridge image generation, validate base references, extract and approve semantic parts, then create and bind rigs.',
+          instructions: 'Use Character-Asset tools to create structured 2.5D character specs, prepare ChatGPT Web image handoffs, validate base references, extract and approve semantic parts, then create and bind rigs.',
           ttlMs: 300000,
           cacheScope: 'public'
         });

@@ -2,7 +2,6 @@ import { createServer } from 'node:http';
 
 import { CharacterAssetService } from '../domain/service.mjs';
 import { CharacterAssetError } from '../errors.mjs';
-import { imageBridgeFromEnv } from '../generation/image-bridge.mjs';
 import { MCP_PROTOCOL_VERSION, createCharacterAssetMcpRouter } from '../mcp/router.mjs';
 import { JsonStore } from '../storage/json-store.mjs';
 import { errorStatus, handleRest, readJsonBody, sendJson, sendRestError } from './rest.mjs';
@@ -131,9 +130,9 @@ async function handleMcp(req, res, router, store) {
   await reply(mcpStatus(payload), payload);
 }
 
-export function createHttpServer({ dataDir = './data', imageBridge = imageBridgeFromEnv() } = {}) {
+export function createHttpServer({ dataDir = './data' } = {}) {
   const store = new JsonStore(dataDir);
-  const service = new CharacterAssetService(store, { imageBridge });
+  const service = new CharacterAssetService(store);
   const router = createCharacterAssetMcpRouter(service);
 
   return createServer(async (req, res) => {

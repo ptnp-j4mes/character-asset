@@ -1329,273 +1329,6 @@
       }
     },
     {
-      "name": "character.generate_base_views",
-      "title": "Generate base views",
-      "description": "Generate canonical base views through the configured image-generation bridge, then persist the returned PNGs.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "character_id": {
-            "type": "string",
-            "pattern": "^char_[A-Za-z0-9_-]+$"
-          },
-          "views": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "enum": [
-                "S",
-                "SW",
-                "W",
-                "NW",
-                "N"
-              ]
-            },
-            "minItems": 1,
-            "uniqueItems": true
-          },
-          "regenerate": {
-            "type": "boolean",
-            "default": false
-          },
-          "seed": {
-            "type": "integer"
-          }
-        },
-        "additionalProperties": false,
-        "required": [
-          "character_id",
-          "views"
-        ]
-      },
-      "outputSchema": {
-        "type": "object",
-        "properties": {
-          "generation": {
-            "$ref": "#/$defs/BaseViewGeneration"
-          },
-          "views": {
-            "type": "array",
-            "items": {
-              "$ref": "#/$defs/BaseView"
-            }
-          }
-        },
-        "additionalProperties": false,
-        "required": [
-          "generation",
-          "views"
-        ],
-        "$defs": {
-          "BaseViewGeneration": {
-            "type": "object",
-            "properties": {
-              "generation_id": {
-                "type": "string",
-                "pattern": "^gen_[A-Za-z0-9_-]+$"
-              },
-              "character_id": {
-                "type": "string",
-                "pattern": "^char_[A-Za-z0-9_-]+$"
-              },
-              "status": {
-                "type": "string",
-                "enum": [
-                  "prepared"
-                ]
-              },
-              "generator": {
-                "type": "string",
-                "enum": [
-                  "chatgpt-web",
-                  "image-bridge"
-                ]
-              },
-              "prompt_template_version": {
-                "type": "string"
-              },
-              "character_lock": {
-                "type": "object",
-                "properties": {
-                  "spec_id": {
-                    "type": "string"
-                  },
-                  "asset_version": {
-                    "type": "integer",
-                    "minimum": 1
-                  },
-                  "name": {
-                    "type": "string"
-                  },
-                  "style_profile": {
-                    "type": "string"
-                  },
-                  "proportion_profile": {
-                    "type": "string"
-                  },
-                  "visual": {
-                    "type": "object",
-                    "properties": {},
-                    "additionalProperties": true
-                  },
-                  "output_constraints": {
-                    "type": "object",
-                    "properties": {},
-                    "additionalProperties": true
-                  }
-                },
-                "additionalProperties": false,
-                "required": [
-                  "spec_id",
-                  "asset_version",
-                  "name",
-                  "style_profile",
-                  "proportion_profile",
-                  "visual",
-                  "output_constraints"
-                ]
-              },
-              "views": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "direction": {
-                      "type": "string",
-                      "enum": [
-                        "S",
-                        "SW",
-                        "W",
-                        "NW",
-                        "N"
-                      ]
-                    },
-                    "prompt": {
-                      "type": "string",
-                      "minLength": 1
-                    }
-                  },
-                  "additionalProperties": false,
-                  "required": [
-                    "direction",
-                    "prompt"
-                  ]
-                }
-              },
-              "created_at": {
-                "type": "string",
-                "format": "date-time"
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "generation_id",
-              "character_id",
-              "status",
-              "generator",
-              "prompt_template_version",
-              "character_lock",
-              "views",
-              "created_at"
-            ]
-          },
-          "BaseView": {
-            "type": "object",
-            "properties": {
-              "direction": {
-                "type": "string",
-                "enum": [
-                  "S",
-                  "SW",
-                  "W",
-                  "NW",
-                  "N",
-                  "NE",
-                  "E",
-                  "SE"
-                ]
-              },
-              "image_asset_id": {
-                "type": "string"
-              },
-              "source_direction": {
-                "type": "string",
-                "enum": [
-                  "S",
-                  "SW",
-                  "W",
-                  "NW",
-                  "N",
-                  "NE",
-                  "E",
-                  "SE"
-                ]
-              },
-              "mirrored": {
-                "type": "boolean",
-                "default": false
-              },
-              "status": {
-                "type": "string",
-                "enum": [
-                  "draft",
-                  "processing",
-                  "ready",
-                  "approved",
-                  "failed",
-                  "archived"
-                ]
-              },
-              "width": {
-                "type": "integer",
-                "minimum": 1
-              },
-              "height": {
-                "type": "integer",
-                "minimum": 1
-              },
-              "transparent_background": {
-                "type": "boolean"
-              },
-              "provenance": {
-                "type": "object",
-                "properties": {
-                  "provider": {
-                    "type": "string"
-                  },
-                  "model": {
-                    "type": "string"
-                  },
-                  "seed": {
-                    "type": "integer"
-                  },
-                  "prompt_template_version": {
-                    "type": "string"
-                  },
-                  "generation_id": {
-                    "type": "string"
-                  }
-                },
-                "additionalProperties": true
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "direction",
-              "image_asset_id",
-              "status"
-            ]
-          }
-        }
-      },
-      "annotations": {
-        "readOnlyHint": false,
-        "destructiveHint": false,
-        "idempotentHint": false,
-        "openWorldHint": false
-      }
-    },
-    {
       "name": "character.prepare_base_views",
       "title": "Prepare base views for ChatGPT Web",
       "description": "Build and persist locked prompts for ChatGPT Web/native image generation without calling an image provider from the server.",
@@ -1757,6 +1490,411 @@
         "readOnlyHint": false,
         "destructiveHint": false,
         "idempotentHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "character.begin_image_handoff",
+      "title": "Begin ChatGPT Web image handoff",
+      "description": "Create a browser-companion handoff session for an existing or newly prepared generation.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "character_id": {
+            "type": "string",
+            "pattern": "^char_[A-Za-z0-9_-]+$"
+          },
+          "generation_id": {
+            "type": "string",
+            "pattern": "^gen_[A-Za-z0-9_-]+$"
+          },
+          "views": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "S",
+                "SW",
+                "W",
+                "NW",
+                "N"
+              ]
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "character_id"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "handoff": {
+            "$ref": "#/$defs/ImageHandoff"
+          },
+          "generation": {
+            "$ref": "#/$defs/BaseViewGeneration"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "handoff",
+          "generation"
+        ],
+        "$defs": {
+          "BaseViewGeneration": {
+            "type": "object",
+            "properties": {
+              "generation_id": {
+                "type": "string",
+                "pattern": "^gen_[A-Za-z0-9_-]+$"
+              },
+              "character_id": {
+                "type": "string",
+                "pattern": "^char_[A-Za-z0-9_-]+$"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "prepared"
+                ]
+              },
+              "generator": {
+                "type": "string",
+                "enum": [
+                  "chatgpt-web",
+                  "image-bridge"
+                ]
+              },
+              "prompt_template_version": {
+                "type": "string"
+              },
+              "character_lock": {
+                "type": "object",
+                "properties": {
+                  "spec_id": {
+                    "type": "string"
+                  },
+                  "asset_version": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "style_profile": {
+                    "type": "string"
+                  },
+                  "proportion_profile": {
+                    "type": "string"
+                  },
+                  "visual": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": true
+                  },
+                  "output_constraints": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": true
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "spec_id",
+                  "asset_version",
+                  "name",
+                  "style_profile",
+                  "proportion_profile",
+                  "visual",
+                  "output_constraints"
+                ]
+              },
+              "views": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "direction": {
+                      "type": "string",
+                      "enum": [
+                        "S",
+                        "SW",
+                        "W",
+                        "NW",
+                        "N"
+                      ]
+                    },
+                    "prompt": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "direction",
+                    "prompt"
+                  ]
+                }
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "generation_id",
+              "character_id",
+              "status",
+              "generator",
+              "prompt_template_version",
+              "character_lock",
+              "views",
+              "created_at"
+            ]
+          },
+          "ImageHandoff": {
+            "type": "object",
+            "properties": {
+              "handoff_id": {
+                "type": "string",
+                "pattern": "^handoff_[A-Za-z0-9_-]+$"
+              },
+              "character_id": {
+                "type": "string",
+                "pattern": "^char_[A-Za-z0-9_-]+$"
+              },
+              "generation_id": {
+                "type": "string",
+                "pattern": "^gen_[A-Za-z0-9_-]+$"
+              },
+              "source": {
+                "type": "string",
+                "enum": [
+                  "chatgpt-web-companion"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "active",
+                  "completed"
+                ]
+              },
+              "requested_views": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "S",
+                    "SW",
+                    "W",
+                    "NW",
+                    "N"
+                  ]
+                },
+                "minItems": 1,
+                "uniqueItems": true
+              },
+              "received_views": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "S",
+                    "SW",
+                    "W",
+                    "NW",
+                    "N"
+                  ]
+                },
+                "uniqueItems": true
+              },
+              "next_direction": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "S",
+                      "SW",
+                      "W",
+                      "NW",
+                      "N"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updated_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "handoff_id",
+              "character_id",
+              "generation_id",
+              "source",
+              "status",
+              "requested_views",
+              "received_views",
+              "next_direction",
+              "created_at",
+              "updated_at"
+            ]
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "character.get_image_handoff",
+      "title": "Get image handoff",
+      "description": "Read current browser-companion handoff state and the next expected direction.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "handoff_id": {
+            "type": "string",
+            "pattern": "^handoff_[A-Za-z0-9_-]+$"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "handoff_id"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "handoff": {
+            "$ref": "#/$defs/ImageHandoff"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "handoff"
+        ],
+        "$defs": {
+          "ImageHandoff": {
+            "type": "object",
+            "properties": {
+              "handoff_id": {
+                "type": "string",
+                "pattern": "^handoff_[A-Za-z0-9_-]+$"
+              },
+              "character_id": {
+                "type": "string",
+                "pattern": "^char_[A-Za-z0-9_-]+$"
+              },
+              "generation_id": {
+                "type": "string",
+                "pattern": "^gen_[A-Za-z0-9_-]+$"
+              },
+              "source": {
+                "type": "string",
+                "enum": [
+                  "chatgpt-web-companion"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "active",
+                  "completed"
+                ]
+              },
+              "requested_views": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "S",
+                    "SW",
+                    "W",
+                    "NW",
+                    "N"
+                  ]
+                },
+                "minItems": 1,
+                "uniqueItems": true
+              },
+              "received_views": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "S",
+                    "SW",
+                    "W",
+                    "NW",
+                    "N"
+                  ]
+                },
+                "uniqueItems": true
+              },
+              "next_direction": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "S",
+                      "SW",
+                      "W",
+                      "NW",
+                      "N"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updated_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "handoff_id",
+              "character_id",
+              "generation_id",
+              "source",
+              "status",
+              "requested_views",
+              "received_views",
+              "next_direction",
+              "created_at",
+              "updated_at"
+            ]
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false
       }
     },
@@ -4433,61 +4571,6 @@
               "version"
             ]
           },
-          "Socket": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "bone_name": {
-                "type": "string"
-              },
-              "slot_type": {
-                "type": "string",
-                "enum": [
-                  "head",
-                  "weapon",
-                  "shield",
-                  "back",
-                  "fx",
-                  "custom"
-                ]
-              },
-              "offset": {
-                "type": "object",
-                "properties": {
-                  "x": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "y": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "rotation": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "scale_x": {
-                    "type": "number",
-                    "default": 1
-                  },
-                  "scale_y": {
-                    "type": "number",
-                    "default": 1
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "bone_name",
-              "slot_type",
-              "offset"
-            ]
-          },
           "Binding": {
             "type": "object",
             "properties": {
@@ -4610,6 +4693,61 @@
               "name",
               "parent",
               "position"
+            ]
+          },
+          "Socket": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "bone_name": {
+                "type": "string"
+              },
+              "slot_type": {
+                "type": "string",
+                "enum": [
+                  "head",
+                  "weapon",
+                  "shield",
+                  "back",
+                  "fx",
+                  "custom"
+                ]
+              },
+              "offset": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "y": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "rotation": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "scale_x": {
+                    "type": "number",
+                    "default": 1
+                  },
+                  "scale_y": {
+                    "type": "number",
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "bone_name",
+              "slot_type",
+              "offset"
             ]
           }
         }
@@ -4709,61 +4847,6 @@
               "version"
             ]
           },
-          "Socket": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "bone_name": {
-                "type": "string"
-              },
-              "slot_type": {
-                "type": "string",
-                "enum": [
-                  "head",
-                  "weapon",
-                  "shield",
-                  "back",
-                  "fx",
-                  "custom"
-                ]
-              },
-              "offset": {
-                "type": "object",
-                "properties": {
-                  "x": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "y": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "rotation": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "scale_x": {
-                    "type": "number",
-                    "default": 1
-                  },
-                  "scale_y": {
-                    "type": "number",
-                    "default": 1
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "bone_name",
-              "slot_type",
-              "offset"
-            ]
-          },
           "Binding": {
             "type": "object",
             "properties": {
@@ -4886,6 +4969,61 @@
               "name",
               "parent",
               "position"
+            ]
+          },
+          "Socket": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "bone_name": {
+                "type": "string"
+              },
+              "slot_type": {
+                "type": "string",
+                "enum": [
+                  "head",
+                  "weapon",
+                  "shield",
+                  "back",
+                  "fx",
+                  "custom"
+                ]
+              },
+              "offset": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "y": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "rotation": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "scale_x": {
+                    "type": "number",
+                    "default": 1
+                  },
+                  "scale_y": {
+                    "type": "number",
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "bone_name",
+              "slot_type",
+              "offset"
             ]
           }
         }
@@ -5134,61 +5272,6 @@
               "version"
             ]
           },
-          "Socket": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "bone_name": {
-                "type": "string"
-              },
-              "slot_type": {
-                "type": "string",
-                "enum": [
-                  "head",
-                  "weapon",
-                  "shield",
-                  "back",
-                  "fx",
-                  "custom"
-                ]
-              },
-              "offset": {
-                "type": "object",
-                "properties": {
-                  "x": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "y": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "rotation": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "scale_x": {
-                    "type": "number",
-                    "default": 1
-                  },
-                  "scale_y": {
-                    "type": "number",
-                    "default": 1
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "bone_name",
-              "slot_type",
-              "offset"
-            ]
-          },
           "Binding": {
             "type": "object",
             "properties": {
@@ -5311,6 +5394,61 @@
               "name",
               "parent",
               "position"
+            ]
+          },
+          "Socket": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "bone_name": {
+                "type": "string"
+              },
+              "slot_type": {
+                "type": "string",
+                "enum": [
+                  "head",
+                  "weapon",
+                  "shield",
+                  "back",
+                  "fx",
+                  "custom"
+                ]
+              },
+              "offset": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "y": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "rotation": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "scale_x": {
+                    "type": "number",
+                    "default": 1
+                  },
+                  "scale_y": {
+                    "type": "number",
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "bone_name",
+              "slot_type",
+              "offset"
             ]
           }
         }
@@ -5455,61 +5593,6 @@
               "version"
             ]
           },
-          "Socket": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "bone_name": {
-                "type": "string"
-              },
-              "slot_type": {
-                "type": "string",
-                "enum": [
-                  "head",
-                  "weapon",
-                  "shield",
-                  "back",
-                  "fx",
-                  "custom"
-                ]
-              },
-              "offset": {
-                "type": "object",
-                "properties": {
-                  "x": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "y": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "rotation": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "scale_x": {
-                    "type": "number",
-                    "default": 1
-                  },
-                  "scale_y": {
-                    "type": "number",
-                    "default": 1
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "bone_name",
-              "slot_type",
-              "offset"
-            ]
-          },
           "Binding": {
             "type": "object",
             "properties": {
@@ -5632,6 +5715,61 @@
               "name",
               "parent",
               "position"
+            ]
+          },
+          "Socket": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "bone_name": {
+                "type": "string"
+              },
+              "slot_type": {
+                "type": "string",
+                "enum": [
+                  "head",
+                  "weapon",
+                  "shield",
+                  "back",
+                  "fx",
+                  "custom"
+                ]
+              },
+              "offset": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "y": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "rotation": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "scale_x": {
+                    "type": "number",
+                    "default": 1
+                  },
+                  "scale_y": {
+                    "type": "number",
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "bone_name",
+              "slot_type",
+              "offset"
             ]
           }
         }
@@ -5789,61 +5927,6 @@
               "version"
             ]
           },
-          "Socket": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "bone_name": {
-                "type": "string"
-              },
-              "slot_type": {
-                "type": "string",
-                "enum": [
-                  "head",
-                  "weapon",
-                  "shield",
-                  "back",
-                  "fx",
-                  "custom"
-                ]
-              },
-              "offset": {
-                "type": "object",
-                "properties": {
-                  "x": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "y": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "rotation": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "scale_x": {
-                    "type": "number",
-                    "default": 1
-                  },
-                  "scale_y": {
-                    "type": "number",
-                    "default": 1
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "bone_name",
-              "slot_type",
-              "offset"
-            ]
-          },
           "Binding": {
             "type": "object",
             "properties": {
@@ -5966,6 +6049,61 @@
               "name",
               "parent",
               "position"
+            ]
+          },
+          "Socket": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "bone_name": {
+                "type": "string"
+              },
+              "slot_type": {
+                "type": "string",
+                "enum": [
+                  "head",
+                  "weapon",
+                  "shield",
+                  "back",
+                  "fx",
+                  "custom"
+                ]
+              },
+              "offset": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "y": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "rotation": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "scale_x": {
+                    "type": "number",
+                    "default": 1
+                  },
+                  "scale_y": {
+                    "type": "number",
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "bone_name",
+              "slot_type",
+              "offset"
             ]
           }
         }
@@ -6111,61 +6249,6 @@
               "version"
             ]
           },
-          "Socket": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "bone_name": {
-                "type": "string"
-              },
-              "slot_type": {
-                "type": "string",
-                "enum": [
-                  "head",
-                  "weapon",
-                  "shield",
-                  "back",
-                  "fx",
-                  "custom"
-                ]
-              },
-              "offset": {
-                "type": "object",
-                "properties": {
-                  "x": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "y": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "rotation": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "scale_x": {
-                    "type": "number",
-                    "default": 1
-                  },
-                  "scale_y": {
-                    "type": "number",
-                    "default": 1
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "bone_name",
-              "slot_type",
-              "offset"
-            ]
-          },
           "Binding": {
             "type": "object",
             "properties": {
@@ -6288,6 +6371,61 @@
               "name",
               "parent",
               "position"
+            ]
+          },
+          "Socket": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "bone_name": {
+                "type": "string"
+              },
+              "slot_type": {
+                "type": "string",
+                "enum": [
+                  "head",
+                  "weapon",
+                  "shield",
+                  "back",
+                  "fx",
+                  "custom"
+                ]
+              },
+              "offset": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "y": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "rotation": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "scale_x": {
+                    "type": "number",
+                    "default": 1
+                  },
+                  "scale_y": {
+                    "type": "number",
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "bone_name",
+              "slot_type",
+              "offset"
             ]
           }
         }
@@ -6438,61 +6576,6 @@
               "version"
             ]
           },
-          "Socket": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "bone_name": {
-                "type": "string"
-              },
-              "slot_type": {
-                "type": "string",
-                "enum": [
-                  "head",
-                  "weapon",
-                  "shield",
-                  "back",
-                  "fx",
-                  "custom"
-                ]
-              },
-              "offset": {
-                "type": "object",
-                "properties": {
-                  "x": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "y": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "rotation": {
-                    "type": "number",
-                    "default": 0
-                  },
-                  "scale_x": {
-                    "type": "number",
-                    "default": 1
-                  },
-                  "scale_y": {
-                    "type": "number",
-                    "default": 1
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "bone_name",
-              "slot_type",
-              "offset"
-            ]
-          },
           "Binding": {
             "type": "object",
             "properties": {
@@ -6615,6 +6698,61 @@
               "name",
               "parent",
               "position"
+            ]
+          },
+          "Socket": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "bone_name": {
+                "type": "string"
+              },
+              "slot_type": {
+                "type": "string",
+                "enum": [
+                  "head",
+                  "weapon",
+                  "shield",
+                  "back",
+                  "fx",
+                  "custom"
+                ]
+              },
+              "offset": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "y": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "rotation": {
+                    "type": "number",
+                    "default": 0
+                  },
+                  "scale_x": {
+                    "type": "number",
+                    "default": 1
+                  },
+                  "scale_y": {
+                    "type": "number",
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "bone_name",
+              "slot_type",
+              "offset"
             ]
           }
         }
@@ -7880,28 +8018,6 @@
               "status"
             ]
           },
-          "AnimationEvent": {
-            "type": "object",
-            "properties": {
-              "time": {
-                "type": "number",
-                "minimum": 0
-              },
-              "event_name": {
-                "type": "string"
-              },
-              "payload": {
-                "type": "object",
-                "properties": {},
-                "additionalProperties": true
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "time",
-              "event_name"
-            ]
-          },
           "AnimationTrack": {
             "type": "object",
             "properties": {
@@ -7958,6 +8074,28 @@
             "additionalProperties": false,
             "required": [
               "time"
+            ]
+          },
+          "AnimationEvent": {
+            "type": "object",
+            "properties": {
+              "time": {
+                "type": "number",
+                "minimum": 0
+              },
+              "event_name": {
+                "type": "string"
+              },
+              "payload": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "time",
+              "event_name"
             ]
           }
         }
@@ -8115,28 +8253,6 @@
               "status"
             ]
           },
-          "AnimationEvent": {
-            "type": "object",
-            "properties": {
-              "time": {
-                "type": "number",
-                "minimum": 0
-              },
-              "event_name": {
-                "type": "string"
-              },
-              "payload": {
-                "type": "object",
-                "properties": {},
-                "additionalProperties": true
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "time",
-              "event_name"
-            ]
-          },
           "AnimationTrack": {
             "type": "object",
             "properties": {
@@ -8193,6 +8309,28 @@
             "additionalProperties": false,
             "required": [
               "time"
+            ]
+          },
+          "AnimationEvent": {
+            "type": "object",
+            "properties": {
+              "time": {
+                "type": "number",
+                "minimum": 0
+              },
+              "event_name": {
+                "type": "string"
+              },
+              "payload": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "time",
+              "event_name"
             ]
           }
         }
@@ -8321,28 +8459,6 @@
               "status"
             ]
           },
-          "AnimationEvent": {
-            "type": "object",
-            "properties": {
-              "time": {
-                "type": "number",
-                "minimum": 0
-              },
-              "event_name": {
-                "type": "string"
-              },
-              "payload": {
-                "type": "object",
-                "properties": {},
-                "additionalProperties": true
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "time",
-              "event_name"
-            ]
-          },
           "AnimationTrack": {
             "type": "object",
             "properties": {
@@ -8399,6 +8515,28 @@
             "additionalProperties": false,
             "required": [
               "time"
+            ]
+          },
+          "AnimationEvent": {
+            "type": "object",
+            "properties": {
+              "time": {
+                "type": "number",
+                "minimum": 0
+              },
+              "event_name": {
+                "type": "string"
+              },
+              "payload": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "time",
+              "event_name"
             ]
           }
         }
@@ -8579,28 +8717,6 @@
               "status"
             ]
           },
-          "AnimationEvent": {
-            "type": "object",
-            "properties": {
-              "time": {
-                "type": "number",
-                "minimum": 0
-              },
-              "event_name": {
-                "type": "string"
-              },
-              "payload": {
-                "type": "object",
-                "properties": {},
-                "additionalProperties": true
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "time",
-              "event_name"
-            ]
-          },
           "AnimationTrack": {
             "type": "object",
             "properties": {
@@ -8657,6 +8773,28 @@
             "additionalProperties": false,
             "required": [
               "time"
+            ]
+          },
+          "AnimationEvent": {
+            "type": "object",
+            "properties": {
+              "time": {
+                "type": "number",
+                "minimum": 0
+              },
+              "event_name": {
+                "type": "string"
+              },
+              "payload": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "time",
+              "event_name"
             ]
           }
         }
@@ -8816,28 +8954,6 @@
               "status"
             ]
           },
-          "AnimationEvent": {
-            "type": "object",
-            "properties": {
-              "time": {
-                "type": "number",
-                "minimum": 0
-              },
-              "event_name": {
-                "type": "string"
-              },
-              "payload": {
-                "type": "object",
-                "properties": {},
-                "additionalProperties": true
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "time",
-              "event_name"
-            ]
-          },
           "AnimationTrack": {
             "type": "object",
             "properties": {
@@ -8894,6 +9010,28 @@
             "additionalProperties": false,
             "required": [
               "time"
+            ]
+          },
+          "AnimationEvent": {
+            "type": "object",
+            "properties": {
+              "time": {
+                "type": "number",
+                "minimum": 0
+              },
+              "event_name": {
+                "type": "string"
+              },
+              "payload": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "time",
+              "event_name"
             ]
           }
         }
@@ -9041,28 +9179,6 @@
               "status"
             ]
           },
-          "AnimationEvent": {
-            "type": "object",
-            "properties": {
-              "time": {
-                "type": "number",
-                "minimum": 0
-              },
-              "event_name": {
-                "type": "string"
-              },
-              "payload": {
-                "type": "object",
-                "properties": {},
-                "additionalProperties": true
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "time",
-              "event_name"
-            ]
-          },
           "AnimationTrack": {
             "type": "object",
             "properties": {
@@ -9119,6 +9235,28 @@
             "additionalProperties": false,
             "required": [
               "time"
+            ]
+          },
+          "AnimationEvent": {
+            "type": "object",
+            "properties": {
+              "time": {
+                "type": "number",
+                "minimum": 0
+              },
+              "event_name": {
+                "type": "string"
+              },
+              "payload": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "time",
+              "event_name"
             ]
           }
         }
@@ -9310,28 +9448,6 @@
               "status"
             ]
           },
-          "AnimationEvent": {
-            "type": "object",
-            "properties": {
-              "time": {
-                "type": "number",
-                "minimum": 0
-              },
-              "event_name": {
-                "type": "string"
-              },
-              "payload": {
-                "type": "object",
-                "properties": {},
-                "additionalProperties": true
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "time",
-              "event_name"
-            ]
-          },
           "AnimationTrack": {
             "type": "object",
             "properties": {
@@ -9388,6 +9504,28 @@
             "additionalProperties": false,
             "required": [
               "time"
+            ]
+          },
+          "AnimationEvent": {
+            "type": "object",
+            "properties": {
+              "time": {
+                "type": "number",
+                "minimum": 0
+              },
+              "event_name": {
+                "type": "string"
+              },
+              "payload": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "time",
+              "event_name"
             ]
           }
         }
